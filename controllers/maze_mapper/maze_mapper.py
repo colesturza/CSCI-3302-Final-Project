@@ -16,7 +16,7 @@ LIDAR_SENSOR_MAX_RANGE = 3.  # meters
 LIDAR_ANGLE_BINS = 51  # 51 bins to cover the angular range of the lidar, centered at 10
 LIDAR_ANGLE_RANGE = 1.5708  # 90 degrees, 1.5708 radians
 
-# get and enable lidar 
+# get and enable lidar
 lidar = robot.getLidar("LDS-01")
 lidar.enable(SIM_TIMESTEP)
 lidar.enablePointCloud()
