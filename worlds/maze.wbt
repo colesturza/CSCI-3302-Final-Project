@@ -3,8 +3,8 @@ WorldInfo {
   coordinateSystem "NUE"
 }
 Viewpoint {
-  orientation 0.5908739228913854 -0.5509833320407339 -0.5893092355124225 4.161395479393255
-  position 0.8364449197806507 7.696149567877187 -1.3502546057718916
+  orientation 0.16124342659443044 -0.805059621690575 -0.5708586190148263 3.5994603320575966
+  position 2.6735037201547462 9.576854592612433 -4.223211154443611
   follow "e-puck"
   followType "None"
 }
@@ -18,6 +18,10 @@ RectangleArena {
 }
 E-puck {
   translation 0.25 0 -0.25
+  turretSlot [
+    Lab4RobotisLds01 {
+    }
+  ]
 }
 Wall {
   translation 0.25 0 -1.375
