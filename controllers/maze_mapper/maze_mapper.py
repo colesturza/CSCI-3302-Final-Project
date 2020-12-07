@@ -7,22 +7,21 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 from controller import Robot, Motor, DistanceSensor
 
-
 LIDAR_SENSOR_MAX_RANGE = 3.  # Meters
 LIDAR_ANGLE_BINS = 21  # 21 Bins to cover the angular range of the lidar, centered at 10
 LIDAR_ANGLE_RANGE = 1.5708  # 90 degrees, 1.5708 radians
 
 # These are your pose values that you will update by solving the odometry equations
-pose_x = 0.25
-pose_y = 0.25
-pose_theta = 0
+pose_x = 2.125
+pose_y = 0.125
+pose_theta = math.pi
 
 # velocity reduction percent
-MAX_VEL_REDUCTION = 1 # 0.2  # Run robot at 20% of max speed
+MAX_VEL_REDUCTION = 0.2  # Run robot at 20% of max speed
 
 # ePuck Constants
 EPUCK_AXLE_DIAMETER = 0.053  # ePuck's wheels are 53mm apart.
-EPUCK_MAX_WHEEL_SPEED = .125 * MAX_VEL_REDUCTION  # To be filled in with ePuck wheel speed in m/s
+EPUCK_MAX_WHEEL_SPEED = 0.125 * MAX_VEL_REDUCTION  # To be filled in with ePuck wheel speed in m/s
 
 # Index into ground_sensors and ground_sensor_readings for each of the 3 onboard sensors.
 LEFT_IDX = 0
@@ -59,10 +58,19 @@ lidar_secondary_motor.setPosition(float('inf'))
 lidar_main_motor.setVelocity(30.0)
 lidar_secondary_motor.setVelocity(60.0)
 
+# Initialize lidar readings array and offsets
 lidar_readings_array = []
-start_angle_in_radians = LIDAR_ANGLE_RANGE/2
-angle_offset_in_radians = -LIDAR_ANGLE_RANGE/(LIDAR_ANGLE_BINS-1)
+start_angle_in_radians = LIDAR_ANGLE_RANGE / 2
+angle_offset_in_radians = -LIDAR_ANGLE_RANGE / (LIDAR_ANGLE_BINS - 1)
 lidar_offsets_array = [start_angle_in_radians + angle_offset_in_radians * i for i in range(LIDAR_ANGLE_BINS)]
+
+# Map Variables
+MAP_BOUNDS = [2.25, 2.25]
+CELL_RESOLUTIONS = np.array([0.25, 0.25])  # 10cm per cell
+NUM_X_CELLS = int(MAP_BOUNDS[0] / CELL_RESOLUTIONS[0])
+NUM_Y_CELLS = int(MAP_BOUNDS[1] / CELL_RESOLUTIONS[1])
+
+world_map = np.zeros([NUM_Y_CELLS, NUM_X_CELLS])
 
 
 def update_odometry(left_wheel_direction, right_wheel_direction, time_elapsed):
@@ -71,9 +79,9 @@ def update_odometry(left_wheel_direction, right_wheel_direction, time_elapsed):
     update the robot's pose information accordingly
     """
     global pose_x, pose_y, pose_theta, EPUCK_MAX_WHEEL_SPEED, EPUCK_AXLE_DIAMETER
-    pose_theta += (right_wheel_direction - left_wheel_direction) * time_elapsed * EPUCK_MAX_WHEEL_SPEED / EPUCK_AXLE_DIAMETER;
-    pose_x += math.cos(pose_theta) * time_elapsed * EPUCK_MAX_WHEEL_SPEED * (left_wheel_direction + right_wheel_direction)/2.;
-    pose_y += math.sin(pose_theta) * time_elapsed * EPUCK_MAX_WHEEL_SPEED * (left_wheel_direction + right_wheel_direction)/2.;
+    pose_theta += (right_wheel_direction - left_wheel_direction) * time_elapsed * EPUCK_MAX_WHEEL_SPEED / EPUCK_AXLE_DIAMETER
+    pose_x += math.cos(pose_theta) * time_elapsed * EPUCK_MAX_WHEEL_SPEED * (left_wheel_direction + right_wheel_direction) / 2.
+    pose_y += math.sin(pose_theta) * time_elapsed * EPUCK_MAX_WHEEL_SPEED * (left_wheel_direction + right_wheel_direction) / 2.
     pose_theta = get_bounded_theta(pose_theta)
 
 
@@ -81,29 +89,13 @@ def get_bounded_theta(theta):
     """
     Returns theta bounded in [-PI, PI]
     """
-    while theta > math.pi: theta -= 2.*math.pi
-    while theta < -math.pi: theta += 2.*math.pi
+    while theta > math.pi:
+        theta -= 2. * math.pi
+    while theta < -math.pi:
+        theta += 2. * math.pi
     return theta
 
 
-########
-# Part 1.1 - 1.2: Initialize your LIDAR-related data structures here
-########
-lidar_readings_array = []
-start_angle_in_radians = LIDAR_ANGLE_RANGE/2
-angle_offset_in_radians = -LIDAR_ANGLE_RANGE/(LIDAR_ANGLE_BINS-1)
-lidar_offsets_array = [start_angle_in_radians + angle_offset_in_radians * i for i in range(LIDAR_ANGLE_BINS)]
-
-########
-# Part 3.1: Initialize your map data structure here
-########
-NUMBER_OF_CELLS = 9
-WORLD_MAP_RESOLUTION = 4.5/NUMBER_OF_CELLS
-world_map = np.zeros((NUMBER_OF_CELLS, NUMBER_OF_CELLS))
-
-###
-# Part 2.2
-###
 def convert_lidar_reading_to_world_coord(lidar_bin, lidar_distance):
     """
     @param lidar_bin: The beam index that provided this measurement
@@ -122,53 +114,30 @@ def convert_lidar_reading_to_world_coord(lidar_bin, lidar_distance):
     return x_world, y_world
 
 
-###
-# Part 3.2
-###
 def transform_world_coord_to_map_coord(world_coord):
     """
     @param world_coord: Tuple of (x,y) position in world coordinates
-    @return grid_coord: Tuple of (i,j) coordinates corresponding to grid column and row in our map
+    @return grid_coord: Tuple of (i,j) coordinates corresponding to grid row (y-coord) and column (x-coord) in our map
     """
-    global NUMBER_OF_CELLS, WORLD_MAP_RESOLUTION
-    x, y = world_coord
-
-    if (x < 0 or x >= 2.25) or (y > 0 or y <= -2.25):
+    col, row = np.array(world_coord) / CELL_RESOLUTIONS
+    if row < 0 or col < 0 or row >= NUM_Y_CELLS or col >= NUM_X_CELLS:
         return None
 
-    j = int(x / WORLD_MAP_RESOLUTION)
-    # j -= 1 if j == NUMBER_OF_CELLS else 0  # if x == 1 need to subtract the map coord by 1
-
-    i = -int(y / WORLD_MAP_RESOLUTION)
-    # i -= 1 if i == NUMBER_OF_CELLS else 0  # if x == 1 need to subtract the map coord by 1
-
-    return i, j
+    return tuple(np.array([row, col]).astype(int))
 
 
-###
-# Part 3.3
-###
 def transform_map_coord_world_coord(map_coord):
     """
     @param map_coord: Tuple of (i,j) coordinates corresponding to grid column and row in our map
     @return world_coord: Tuple of (x,y) position corresponding to the center of map_coord, in world coordinates
     """
-    global NUMBER_OF_CELLS, WORLD_MAP_RESOLUTION
-    i, j = map_coord
-
-    if (i < 0 or i >= NUMBER_OF_CELLS) or (j < 0 or j >= NUMBER_OF_CELLS):
+    row, col = map_coord
+    if row < 0 or col < 0 or row >= NUM_Y_CELLS or col >= NUM_X_CELLS:
         return None
 
-    x = j * WORLD_MAP_RESOLUTION + WORLD_MAP_RESOLUTION/2
-
-    y = i * WORLD_MAP_RESOLUTION + WORLD_MAP_RESOLUTION / 2
-
-    return x, y
+    return np.array([(col+0.5)*CELL_RESOLUTIONS[1], (row+0.5)*CELL_RESOLUTIONS[0]])
 
 
-###
-# Part 3.5
-###
 def update_map(lidar_readings_array):
     """
     @param lidar_readings_array
@@ -184,15 +153,13 @@ def update_map(lidar_readings_array):
             map_coords = transform_world_coord_to_map_coord(coords)
 
             if map_coords is not None:
-
                 i, j = map_coords
+
+                print(i, j, coords)
 
                 world_map[i, j] = 1
 
 
-###
-# Part 4.1
-###
 def display_map(m):
     """
     @param m: The world map matrix to visualize
@@ -201,26 +168,18 @@ def display_map(m):
     plt.show()
 
 
-################################################################################
-# Do not modify:
-################################################################################
-# Odometry variables
 last_odometry_update_time = None
-loop_closure_detection_time = 0
 
-# Variables to keep track of which direction each wheel is turning for odometry
-left_wheel_direction = 0
-right_wheel_direction = 0
+# Keep track of which direction each wheel is turning
+left_wheel_direction = WHEEL_STOPPED
+right_wheel_direction = WHEEL_STOPPED
 
-# Burn a couple cycles waiting to let everything come online
+# Important IK Variable storing final desired pose
+target_pose = None  # Populated by the supervisor, only when the target is moved.
+
+# Sensor burn-in period
 for i in range(10):
     robot.step(SIM_TIMESTEP)
-
-number_of_loop_closers = 0
-
-################################################################################
-# Do not modify ^
-################################################################################
 
 # Main Control Loop:
 while robot.step(SIM_TIMESTEP) != -1:
@@ -251,7 +210,6 @@ while robot.step(SIM_TIMESTEP) != -1:
     #
     # update_map(lidar_readings_array)
 
-    print(transform_world_coord_to_map_coord((pose_x, pose_y)))
-
+    print((pose_x, pose_y), transform_world_coord_to_map_coord((pose_x, pose_y)))
 
 # Enter here exit cleanup code.
