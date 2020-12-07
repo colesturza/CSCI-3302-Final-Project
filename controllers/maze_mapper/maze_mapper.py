@@ -193,9 +193,9 @@ while robot.step(SIM_TIMESTEP) != -1:
     last_odometry_update_time += time_elapsed
     update_odometry(left_wheel_direction, right_wheel_direction, time_elapsed)
 
-    left_wheel_direction, right_wheel_direction = 1, 1
-    leftMotor.setVelocity(EPUCK_MAX_WHEEL_SPEED)
-    rightMotor.setVelocity(EPUCK_MAX_WHEEL_SPEED)
+    left_wheel_direction, right_wheel_direction = WHEEL_FORWARD * 0.5, WHEEL_FORWARD * 0.5
+    leftMotor.setVelocity(EPUCK_MAX_WHEEL_SPEED * math.pi)
+    rightMotor.setVelocity(EPUCK_MAX_WHEEL_SPEED * math.pi)
 
     # ####
     # # YOUR CODE HERE for Part 1.3, 3.4, and 4.1
