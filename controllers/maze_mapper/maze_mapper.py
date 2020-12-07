@@ -1,15 +1,15 @@
 """maze_mapper controller."""
 
 import math
-import time
 import numpy as np
-import matplotlib.pyplot as plt
-import seaborn as sns
 from controller import Robot, Motor, DistanceSensor
 
-LIDAR_SENSOR_MAX_RANGE = 3.  # Meters
+state = 'turn_drive_turn_control'
+sub_state = 'bearing'
+
+LIDAR_SENSOR_MAX_RANGE = 0.25  # Meters
 LIDAR_ANGLE_BINS = 21  # 21 Bins to cover the angular range of the lidar, centered at 10
-LIDAR_ANGLE_RANGE = 1.5708  # 90 degrees, 1.5708 radians
+LIDAR_ANGLE_RANGE = 3.14159  # 180 degrees, 3.14159 radians
 
 # These are your pose values that you will update by solving the odometry equations
 pose_x = 2.125
@@ -17,19 +17,11 @@ pose_y = 0.125
 pose_theta = math.pi
 
 # velocity reduction percent
-MAX_VEL_REDUCTION = 0.2  # Run robot at 20% of max speed
+MAX_VEL_REDUCTION = 1  # Run robot at 20% of max speed
 
 # ePuck Constants
 EPUCK_AXLE_DIAMETER = 0.053  # ePuck's wheels are 53mm apart.
 EPUCK_MAX_WHEEL_SPEED = 0.125 * MAX_VEL_REDUCTION  # To be filled in with ePuck wheel speed in m/s
-
-# Index into ground_sensors and ground_sensor_readings for each of the 3 onboard sensors.
-LEFT_IDX = 0
-CENTER_IDX = 1
-RIGHT_IDX = 2
-WHEEL_FORWARD = 1
-WHEEL_STOPPED = 0
-WHEEL_BACKWARD = -1
 
 # create the Robot instance.
 robot = Robot()
@@ -45,8 +37,16 @@ rightMotor.setPosition(float('inf'))
 leftMotor.setVelocity(0.0)
 rightMotor.setVelocity(0.0)
 
+# get and enable gps
+gps = robot.getGPS('gps')
+gps.enable(SIM_TIMESTEP)
+
+# get and enable compass
+compass = robot.getCompass('compass')
+compass.enable(SIM_TIMESTEP)
+
 # get and enable lidar
-lidar = robot.getLidar("LDS-01")
+lidar = robot.getLidar('LDS-01')
 lidar.enable(SIM_TIMESTEP)
 lidar.enablePointCloud()
 
@@ -64,25 +64,17 @@ start_angle_in_radians = LIDAR_ANGLE_RANGE / 2
 angle_offset_in_radians = -LIDAR_ANGLE_RANGE / (LIDAR_ANGLE_BINS - 1)
 lidar_offsets_array = [start_angle_in_radians + angle_offset_in_radians * i for i in range(LIDAR_ANGLE_BINS)]
 
+CENTER_LIDAR_IDX = 10
+LEFT_LIDAR_IDX = 0
+RIGHT_LIDAR_IDX = 20
+
 # Map Variables
 MAP_BOUNDS = [2.25, 2.25]
 CELL_RESOLUTIONS = np.array([0.25, 0.25])  # 10cm per cell
 NUM_X_CELLS = int(MAP_BOUNDS[0] / CELL_RESOLUTIONS[0])
 NUM_Y_CELLS = int(MAP_BOUNDS[1] / CELL_RESOLUTIONS[1])
 
-world_map = np.zeros([NUM_Y_CELLS, NUM_X_CELLS])
-
-
-def update_odometry(left_wheel_direction, right_wheel_direction, time_elapsed):
-    """
-    Given the amount of time passed and the direction each wheel was rotating,
-    update the robot's pose information accordingly
-    """
-    global pose_x, pose_y, pose_theta, EPUCK_MAX_WHEEL_SPEED, EPUCK_AXLE_DIAMETER
-    pose_theta += (right_wheel_direction - left_wheel_direction) * time_elapsed * EPUCK_MAX_WHEEL_SPEED / EPUCK_AXLE_DIAMETER
-    pose_x += math.cos(pose_theta) * time_elapsed * EPUCK_MAX_WHEEL_SPEED * (left_wheel_direction + right_wheel_direction) / 2.
-    pose_y += math.sin(pose_theta) * time_elapsed * EPUCK_MAX_WHEEL_SPEED * (left_wheel_direction + right_wheel_direction) / 2.
-    pose_theta = get_bounded_theta(pose_theta)
+world_map = np.zeros([NUM_Y_CELLS, NUM_X_CELLS, 6])
 
 
 def get_bounded_theta(theta):
@@ -94,24 +86,6 @@ def get_bounded_theta(theta):
     while theta < -math.pi:
         theta += 2. * math.pi
     return theta
-
-
-def convert_lidar_reading_to_world_coord(lidar_bin, lidar_distance):
-    """
-    @param lidar_bin: The beam index that provided this measurement
-    @param lidar_distance: The distance measurement from the sensor for that beam
-    @return world_point: List containing the corresponding (x,y) point in the world frame of reference
-    """
-    global pose_x, pose_y, pose_theta
-    global lidar_offsets_array
-
-    x_robot = lidar_distance * np.cos(lidar_offsets_array[lidar_bin])
-    y_robot = lidar_distance * np.sin(lidar_offsets_array[lidar_bin])
-
-    x_world = np.cos(pose_theta) * x_robot - np.sin(pose_theta) * y_robot + pose_x
-    y_world = np.sin(pose_theta) * x_robot + np.cos(pose_theta) * y_robot + pose_y
-
-    return x_world, y_world
 
 
 def transform_world_coord_to_map_coord(world_coord):
@@ -138,44 +112,44 @@ def transform_map_coord_world_coord(map_coord):
     return np.array([(col+0.5)*CELL_RESOLUTIONS[1], (row+0.5)*CELL_RESOLUTIONS[0]])
 
 
-def update_map(lidar_readings_array):
+def convert_compass_values(values):
     """
-    @param lidar_readings_array
+    @param values: Values returned by the compass to be converted radians from north
     """
+    rad = math.atan2(values[0], values[2])
+    bearing = rad - 1.5708
+    if bearing < 0.0:
+        bearing = bearing + 2 * math.pi
+    return bearing
+
+
+def update_map():
+    global pose_x, pose_y, pose_theta
+    global lidar_readings_array, CENTER_LIDAR_IDX, LEFT_LIDAR_IDX, RIGHT_LIDAR_IDX
     global world_map
 
-    for k in range(LIDAR_ANGLE_BINS):
+    map_coords = transform_world_coord_to_map_coord((pose_x, pose_y))
+    if world_map[map_coords][0] == 0:
+        world_map[map_coords][0] = 1
 
-        if lidar_readings_array[k] < 0.3:  # LIDAR_SENSOR_MAX_RANGE:
+    center = True if lidar_readings_array[CENTER_LIDAR_IDX] <= LIDAR_SENSOR_MAX_RANGE else False
+    left = True if lidar_readings_array[LEFT_LIDAR_IDX] <= LIDAR_SENSOR_MAX_RANGE else False
+    right = True if lidar_readings_array[RIGHT_LIDAR_IDX] <= LIDAR_SENSOR_MAX_RANGE else False
 
-            coords = convert_lidar_reading_to_world_coord(k, lidar_readings_array[k])
+    if center:
+        world_map[map_coords][1] = 1
 
-            map_coords = transform_world_coord_to_map_coord(coords)
+    if left:
+        world_map[map_coords][2] = 1
 
-            if map_coords is not None:
-                i, j = map_coords
+    if right:
+        world_map[map_coords][3] = 1
 
-                print(i, j, coords)
-
-                world_map[i, j] = 1
-
-
-def display_map(m):
-    """
-    @param m: The world map matrix to visualize
-    """
-    sns.heatmap(m[::-1, :], cbar=False, xticklabels=False, yticklabels=False)
-    plt.show()
-
-
-last_odometry_update_time = None
-
-# Keep track of which direction each wheel is turning
-left_wheel_direction = WHEEL_STOPPED
-right_wheel_direction = WHEEL_STOPPED
 
 # Important IK Variable storing final desired pose
-target_pose = None  # Populated by the supervisor, only when the target is moved.
+target_pose = transform_map_coord_world_coord((0, 7))  # Populated by the supervisor, only when the target is moved.
+
+print(target_pose)
 
 # Sensor burn-in period
 for i in range(10):
@@ -184,32 +158,46 @@ for i in range(10):
 # Main Control Loop:
 while robot.step(SIM_TIMESTEP) != -1:
 
-    # If first time entering the loop, just take the current time as "last odometry update" time
-    if last_odometry_update_time is None:
-        last_odometry_update_time = robot.getTime()
+    # leftMotor.setVelocity(leftMotor.getMaxVelocity() * 0.2)
+    # rightMotor.setVelocity(rightMotor.getMaxVelocity() * 0.2)
 
-    # Update Odometry
-    time_elapsed = robot.getTime() - last_odometry_update_time
-    last_odometry_update_time += time_elapsed
-    update_odometry(left_wheel_direction, right_wheel_direction, time_elapsed)
+    pose_y, _, pose_x = gps.getValues()
+    north = compass.getValues()
+    pose_theta = convert_compass_values(north)
 
-    left_wheel_direction, right_wheel_direction = WHEEL_FORWARD * 0.5, WHEEL_FORWARD * 0.5
-    leftMotor.setVelocity(EPUCK_MAX_WHEEL_SPEED * math.pi)
-    rightMotor.setVelocity(EPUCK_MAX_WHEEL_SPEED * math.pi)
+    print(pose_theta)
 
-    # ####
-    # # YOUR CODE HERE for Part 1.3, 3.4, and 4.1
-    # ####
+    bearing_error = get_bounded_theta(math.atan2(target_pose[1] - pose_y, target_pose[0] - pose_x) - pose_theta)
+    distance_error = np.sqrt((target_pose[0] - pose_x) ** 2 + (target_pose[1] - pose_y) ** 2)
+
     # lidar_readings_array = lidar.getRangeImage()
-    #
-    # # print(lidar_readings_array)
-    #
-    # pose_x = pose_x
-    # pose_y = 1 - pose_y
-    # pose_theta = pose_theta + math.pi / 2
-    #
-    # update_map(lidar_readings_array)
 
-    print((pose_x, pose_y), transform_world_coord_to_map_coord((pose_x, pose_y)))
+    # update_map()
+
+    print(math.atan2(target_pose[1] - pose_y, target_pose[0] - pose_x))
+
+    if state == "turn_drive_turn_control":
+        if sub_state == "bearing":
+            if bearing_error > 0.05 or bearing_error < -0.05:
+                # If target is on the left rotate counter clockwise
+                if bearing_error > 0:
+                    leftMotor.setVelocity(-leftMotor.getMaxVelocity() * 0.2)
+                    rightMotor.setVelocity(rightMotor.getMaxVelocity() * 0.2)
+                # If target is on the right rotate clockwise
+                else:
+                    leftMotor.setVelocity(leftMotor.getMaxVelocity() * 0.2)
+                    rightMotor.setVelocity(-rightMotor.getMaxVelocity() * 0.2)
+            else:
+                leftMotor.setVelocity(0)
+                rightMotor.setVelocity(0)
+                sub_state = "distance"
+        elif sub_state == "distance":
+            if distance_error > 0.05:
+                leftMotor.setVelocity(leftMotor.getMaxVelocity() * 0.1)
+                rightMotor.setVelocity(rightMotor.getMaxVelocity() * 0.1)
+            else:
+                leftMotor.setVelocity(0)
+                rightMotor.setVelocity(0)
+                sub_state = "bearing"
 
 # Enter here exit cleanup code.
