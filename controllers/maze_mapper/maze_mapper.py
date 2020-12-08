@@ -93,20 +93,24 @@ camera.enable(SIM_TIMESTEP)
 
 def find_color():
 
-    image = camera.getImageArray()
+    image = np.array(camera.getImageArray())
 
-    image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
-    mask = cv2.inRange(image, [0, 0, 135], [70, 90, 255])
+    print(image.shape)
 
-    _, contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL,
-                                      cv2.CHAIN_APPROX_NONE)
+    print(image)
 
-    blob = max(contours, key=lambda el: cv2.contourArea(el))
+    # image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
+    # mask = cv2.inRange(image, [0, 0, 135], [70, 90, 255])
+    #
+    # _, contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL,
+    #                                   cv2.CHAIN_APPROX_NONE)
+    #
+    # blob = max(contours, key=lambda el: cv2.contourArea(el))
+    #
+    # print(blob)
 
-    print(blob)
-
-    if len(blob) > 100:
-        return 'Red'
+    # if len(blob) > 100:
+    #     return 'Red'
 
     return None
 

@@ -1,0 +1,73 @@
+#VRML_SIM R2020b utf8
+WorldInfo {
+  title "E-Puck"
+  coordinateSystem "NUE"
+}
+Viewpoint {
+  orientation -0.3487635866712445 -0.7839328930973273 -0.5136274717460736 2.1867906366947394
+  position -1.460340566174961 4.519901643197272 0.3729337622282756
+  follow "e-puck"
+}
+TexturedBackground {
+}
+TexturedBackgroundLight {
+}
+RectangleArena {
+  translation 0.75 0 0.75
+  floorSize 1.5 1.5
+}
+DEF EPUCK E-puck {
+  translation 0.125 0 1.375
+  controller "maze_mapper"
+  turretSlot [
+    Compass {
+    }
+    GPS {
+    }
+    Lab4RobotisLds01 {
+    }
+  ]
+}
+DEF WALL Wall {
+  translation 0.25 0 0.375
+  rotation 0 1 0 -1.5707953071795862
+  size 0.25 0.25 0.05
+  appearance Appearance {
+    material Material {
+      diffuseColor 0.933333 0.933333 0.92549
+    }
+  }
+}
+DEF WALL Wall {
+  translation 0.75 0 0.375
+  rotation 0 1 0 -1.5707953071795862
+  name "wall(1)"
+  size 0.25 0.25 0.05
+  appearance Appearance {
+    material Material {
+      diffuseColor 0.933333 0.933333 0.92549
+    }
+  }
+}
+DEF WALL Wall {
+  translation 0.75 0 0.625
+  rotation 0 1 0 -1.5707953071795862
+  name "wall(2)"
+  size 0.25 0.25 0.05
+  appearance Appearance {
+    material Material {
+      diffuseColor 0.933333 0.933333 0.92549
+    }
+  }
+}
+DEF WALL Wall {
+  translation 0.75 0 1.125
+  rotation 0 1 0 -1.5707953071795862
+  name "wall(3)"
+  size 0.25 0.25 0.05
+  appearance Appearance {
+    material Material {
+      diffuseColor 0.933333 0.933333 0.92549
+    }
+  }
+}
