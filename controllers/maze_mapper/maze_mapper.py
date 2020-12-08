@@ -71,7 +71,7 @@ LEFT_LIDAR_IDX = 0
 RIGHT_LIDAR_IDX = 20
 
 # Map Variables
-MAP_BOUNDS = [2.25, 2.25]
+MAP_BOUNDS = [1.5, 1.5]
 CELL_RESOLUTIONS = np.array([0.25, 0.25])  # 10cm per cell
 NUM_X_CELLS = int(MAP_BOUNDS[0] / CELL_RESOLUTIONS[0])
 NUM_Y_CELLS = int(MAP_BOUNDS[1] / CELL_RESOLUTIONS[1])
@@ -79,25 +79,24 @@ NUM_Y_CELLS = int(MAP_BOUNDS[1] / CELL_RESOLUTIONS[1])
 world_map = np.zeros([NUM_Y_CELLS, NUM_X_CELLS, 6])
 
 # Set the boundary walls
-world_map[:, 8, 1] = 1  # North facing wall
+world_map[:, 5, 1] = 1  # North facing wall
 world_map[0, :, 2] = 1  # West facing wall
 world_map[:, 0, 3] = 1  # South facing wall
-world_map[8, :, 4] = 1  # East facing wall
+world_map[5, :, 4] = 1  # East facing wall
 
 # Set starting spot to visited
-world_map[8, 0, 0] = 1
+world_map[5, 0, 0] = 1
 
 camera = robot.getCamera('camera')
 camera.enable(SIM_TIMESTEP)
 
 
 def find_color():
-
     image = np.array(camera.getImageArray())
 
     print(image.shape)
 
-    print(image)
+    # print(image)
 
     # image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
     # mask = cv2.inRange(image, [0, 0, 135], [70, 90, 255])
@@ -147,7 +146,7 @@ def transform_map_coord_world_coord(map_coord):
     if row < 0 or col < 0 or row >= NUM_Y_CELLS or col >= NUM_X_CELLS:
         return None
 
-    return np.array([(col+0.5)*CELL_RESOLUTIONS[1], (row+0.5)*CELL_RESOLUTIONS[0]])
+    return np.array([(col + 0.5) * CELL_RESOLUTIONS[1], (row + 0.5) * CELL_RESOLUTIONS[0]])
 
 
 def update_map():
@@ -162,21 +161,27 @@ def update_map():
 
     facing = None
 
-    if math.isclose(pose_theta, 90, abs_tol=10):
+    facing_degree = pose_theta * 180 / math.pi
+
+    print('facing degree:', facing_degree)
+
+    if math.isclose(facing_degree, 90, abs_tol=10):
         facing = 'North'
 
-    elif math.isclose(pose_theta, 360, abs_tol=10):
-        facing = 'West'
+    elif math.isclose(facing_degree, 360, abs_tol=10) or math.isclose(facing_degree, 0, abs_tol=10):
+        facing = 'East'
 
-    elif math.isclose(pose_theta, 270, abs_tol=10):
+    elif math.isclose(facing_degree, 270, abs_tol=10):
         facing = 'South'
 
-    elif math.isclose(pose_theta, 180, abs_tol=10):
-        facing = 'East'
+    elif math.isclose(facing_degree, 180, abs_tol=10):
+        facing = 'West'
 
     center = True if lidar_readings_array[CENTER_LIDAR_IDX] <= LIDAR_SENSOR_MAX_RANGE else False
     left = True if lidar_readings_array[LEFT_LIDAR_IDX] <= LIDAR_SENSOR_MAX_RANGE else False
     right = True if lidar_readings_array[RIGHT_LIDAR_IDX] <= LIDAR_SENSOR_MAX_RANGE else False
+
+    print(facing, center, left, right)
 
     if center:
 
@@ -217,7 +222,7 @@ def update_map():
 
 def get_bearing_in_degrees(values):
     rad = math.atan2(compass_values[0], compass_values[2])
-    bearing = (rad - 1.5708) / math.pi * 180.0;
+    bearing = (rad - 1.5708) / math.pi * 180.0
     if bearing < 0.0:
         bearing = bearing + 360.0
     return bearing
@@ -261,41 +266,41 @@ def get_next_target():
 
     # check north tile
     if world_map[x, y][1] != 1:
-        candidate_targets.append((x, y+1))
+        candidate_targets.append((x, y + 1))
 
-        if world_map[x, y+1][0] == 0:
-            weights.append(10)
+        if world_map[x, y + 1][0] == 0:
+            weights.append(100)
         else:
             weights.append(1)
 
     # check west tile
     if world_map[x, y][2] != 1:
-        candidate_targets.append((x-1, y))
+        candidate_targets.append((x - 1, y))
 
-        if world_map[x-1, y][0] == 0:
-            weights.append(10)
+        if world_map[x - 1, y][0] == 0:
+            weights.append(100)
         else:
             weights.append(1)
 
     # check south tile
     if world_map[x, y][3] != 1:
-        candidate_targets.append((x, y-1))
+        candidate_targets.append((x, y - 1))
 
-        if world_map[x, y-1][0] == 0:
-            weights.append(10)
+        if world_map[x, y - 1][0] == 0:
+            weights.append(100)
         else:
             weights.append(1)
 
     # check east tile
     if world_map[x, y][4] != 1:
-        candidate_targets.append((x+1, y))
+        candidate_targets.append((x + 1, y))
 
-        if world_map[x+1, y][0] == 0:
-            weights.append(10)
+        if world_map[x + 1, y][0] == 0:
+            weights.append(100)
         else:
             weights.append(1)
 
-    weights = np.array(weights)/np.sum(weights)
+    weights = np.array(weights) / np.sum(weights)
 
     new_target_idx = np.random.choice(range(len(candidate_targets)), p=weights)
 
@@ -303,67 +308,68 @@ def get_next_target():
 
     return candidate_targets[new_target_idx]
 
+
 def world_map_to_graph(world_map):
+    graph_dict = {}
 
-	graph_dict = {}
+    for i in range(len(world_map)):
+        for j in range(len(world_map[0])):
 
-	for i in range(len(world_map)):
-		for j in range(len(world_map[0])):
+            graph_dict[(i, j)] = []
 
-			graph_dict[(i, j)] = []
+            # if not visited, do nothing
+            if world_map[i, j, 0] == 0:
+                continue
 
-			# if not visited, do nothing
-			if world_map[i, j, 0] == 0:
-				continue
+            # if no north wall, add adjacency to north tile
+            if world_map[i, j, 1] == 0:
+                graph_dict[(i, j)].append((i, j + 1))
 
-			# if no north wall, add adjacency to north tile
-			if world_map[i, j, 1] == 0:
-				graph_dict[(i, j)].append((i, j+1))
+            # if no west wall, add adjacency to west tile
+            if world_map[i, j, 2] == 0:
+                graph_dict[(i, j)].append((i - 1, j))
 
-			# if no west wall, add adjacency to west tile
-			if world_map[i, j, 2] == 0:
-				graph_dict[(i, j)].append((i-1, j))
+            # if no south wall, add adjacency to south tile
+            if world_map[i, j, 3] == 0:
+                graph_dict[(i, j)].append((i, j - 1))
 
-			# if no south wall, add adjacency to south tile
-			if world_map[i, j, 3] == 0:
-				graph_dict[(i, j)].append((i, j-1))
+            # if no east wall, add adjacency to east tile
+            if world_map[i, j, 4] == 0:
+                graph_dict[(i, j)].append((i + 1, j))
 
-			# if no east wall, add adjacency to east tile
-			if world_map[i, j, 4] == 0:
-				graph_dict[(i, j)].append((i+1, j))
+    return graph_dict
 
-	return graph_dict
 
 def find_shortest_path(graph_dict, start, goal):
-	dist = {}
-	prev = {}
+    dist = {}
+    prev = {}
 
-	for key in graph_dict.keys():
-		dist[key] = math.inf
-		prev[key] = None
+    for key in graph_dict.keys():
+        dist[key] = math.inf
+        prev[key] = None
 
-	dist[start] = 0
+    dist[start] = 0
 
-	q_cost = dist.copy()
+    q_cost = dist.copy()
 
-	while len(q_cost) > 0:
-		u = min(q_cost, key=q_cost.get)
-		_ = q_cost.pop(u)
-		for neighbor in graph_dict[u]:
-			new_dist = dist[u] + 1
-			if new_dist < dist[neighbor]:
-				dist[neighbor] = new_dist
-				q_cost[neighbor] = new_dist
-				prev[neighbor] = u
+    while len(q_cost) > 0:
+        u = min(q_cost, key=q_cost.get)
+        _ = q_cost.pop(u)
+        for neighbor in graph_dict[u]:
+            new_dist = dist[u] + 1
+            if new_dist < dist[neighbor]:
+                dist[neighbor] = new_dist
+                q_cost[neighbor] = new_dist
+                prev[neighbor] = u
 
-	path = [goal]
-	curr = prev[goal]
-	while curr != start:
-		path.append(curr)
-		curr = prev[curr]
-	path.append(curr)
+    path = [goal]
+    curr = prev[goal]
+    while curr != start:
+        path.append(curr)
+        curr = prev[curr]
+    path.append(curr)
 
-	return path[::-1]
+    return path[::-1]
 
 
 target_pose = None
@@ -383,7 +389,12 @@ while robot.step(SIM_TIMESTEP) != -1:
 
     pose_x, _, pose_y = gps.getValues()
     compass_values = compass.getValues()
-    pose_theta = get_bearing_in_degrees(compass_values)
+    pose_theta = math.atan2(compass_values[2], compass_values[0])  # get_bearing_in_degrees(compass_values)
+
+    if pose_theta >= 0:
+        pose_theta = pose_theta
+    else:
+        pose_theta = (2 * math.pi + pose_theta)
 
     lidar_readings_array = lidar.getRangeImage()
 
@@ -404,50 +415,67 @@ while robot.step(SIM_TIMESTEP) != -1:
         current_pose_map_coords = transform_world_coord_to_map_coord((pose_x, pose_y))
 
         target_pose = transform_map_coord_world_coord(target_pose_map_coords)
-        target_bearing = get_target_bearing(target_pose_map_coords, current_pose_map_coords)
+
+        target_bearing = math.atan2(target_pose[0] - pose_x, target_pose[1] - pose_y)
+        print((pose_x, pose_y), target_pose)
+        print(pose_theta, target_bearing)
+
+        if target_bearing >= 0:
+            target_bearing = target_bearing
+        else:
+            target_bearing = (2*math.pi + target_bearing)
+
+        print(target_bearing)
+
+        # target_bearing = get_target_bearing(target_pose_map_coords, current_pose_map_coords)
 
         state = "turn_drive_turn_control"
 
     elif state == "turn_drive_turn_control":
 
-        bearing_error = abs(target_bearing - pose_theta)
+        bearing_error = pose_theta - target_bearing
         distance_error = np.linalg.norm(np.array(target_pose) - np.array([pose_x, pose_y]))
 
-        # if sub_state == "bearing":
-        #     if bearing_error > 1:
-        #         leftMotor.setVelocity(-leftMotor.getMaxVelocity() * 0.05)
-        #         rightMotor.setVelocity(rightMotor.getMaxVelocity() * 0.05)
-        #     else:
-        #         leftMotor.setVelocity(0)
-        #         rightMotor.setVelocity(0)
-        #         sub_state = "distance"
-        # elif sub_state == "distance":
-        #     if distance_error > 0.05:
-        #         leftMotor.setVelocity(leftMotor.getMaxVelocity() * 0.2)
-        #         rightMotor.setVelocity(rightMotor.getMaxVelocity() * 0.2)
-        #     else:
-        #         leftMotor.setVelocity(0)
-        #         rightMotor.setVelocity(0)
+        print(pose_theta, target_bearing, bearing_error, distance_error)
+
+        if sub_state == "bearing":
+            if bearing_error > 0.005:
+                leftMotor.setVelocity(leftMotor.getMaxVelocity() * 0.05)
+                rightMotor.setVelocity(-rightMotor.getMaxVelocity() * 0.05)
+            elif bearing_error < -0.005:
+                leftMotor.setVelocity(-leftMotor.getMaxVelocity() * 0.05)
+                rightMotor.setVelocity(rightMotor.getMaxVelocity() * 0.05)
+            else:
+                leftMotor.setVelocity(0)
+                rightMotor.setVelocity(0)
+                sub_state = "distance"
+        elif sub_state == "distance":
+            if distance_error > 0.025:
+                leftMotor.setVelocity(leftMotor.getMaxVelocity() * 0.2)
+                rightMotor.setVelocity(rightMotor.getMaxVelocity() * 0.2)
+            else:
+                leftMotor.setVelocity(0)
+                rightMotor.setVelocity(0)
+
+                update_map()
+
+                sub_state = "bearing"
+                state = "get_target"
+
+        # if bearing_error > 0.5:
+        #     leftMotor.setVelocity(-leftMotor.getMaxVelocity() * 0.05)
+        #     rightMotor.setVelocity(rightMotor.getMaxVelocity() * 0.05)
+        # elif distance_error > 0.05:
+        #     leftMotor.setVelocity(leftMotor.getMaxVelocity() * 0.2)
+        #     rightMotor.setVelocity(rightMotor.getMaxVelocity() * 0.2)
+        # else:
+        #     leftMotor.setVelocity(0)
+        #     rightMotor.setVelocity(0)
         #
-        #         update_map()
+        #     update_map()
         #
-        #         sub_state = "bearing"
-        #         state = "get_target"
-
-        if bearing_error > 0.5:
-            leftMotor.setVelocity(-leftMotor.getMaxVelocity() * 0.05)
-            rightMotor.setVelocity(rightMotor.getMaxVelocity() * 0.05)
-        elif distance_error > 0.05:
-            leftMotor.setVelocity(leftMotor.getMaxVelocity() * 0.2)
-            rightMotor.setVelocity(rightMotor.getMaxVelocity() * 0.2)
-        else:
-            leftMotor.setVelocity(0)
-            rightMotor.setVelocity(0)
-
-            update_map()
-
-            sub_state = "bearing"
-            state = "get_target"
+        #     sub_state = "bearing"
+        #     state = "get_target"
 
 print(world_map[:, :, 0])
 print(world_map[:, :, 1])

@@ -4,8 +4,8 @@ WorldInfo {
   coordinateSystem "NUE"
 }
 Viewpoint {
-  orientation -0.3487635866712445 -0.7839328930973273 -0.5136274717460736 2.1867906366947394
-  position -1.460340566174961 4.519901643197272 0.3729337622282756
+  orientation -0.6493154039126762 -0.5860415722066957 -0.48471102926096327 1.8352971467861436
+  position -0.07778782166195901 1.5443954187990336 1.4272044848105658
   follow "e-puck"
 }
 TexturedBackground {
@@ -21,6 +21,7 @@ DEF EPUCK E-puck {
   controller "maze_mapper"
   turretSlot [
     Compass {
+      rotation 0 1 0 3.14159
     }
     GPS {
     }
@@ -50,6 +51,17 @@ DEF WALL Wall {
   }
 }
 DEF WALL Wall {
+  translation 1.25 0 0.375
+  rotation 0 1 0 -1.5707953071795862
+  name "wall(8)"
+  size 0.25 0.25 0.05
+  appearance Appearance {
+    material Material {
+      diffuseColor 0.933333 0.933333 0.92549
+    }
+  }
+}
+DEF WALL Wall {
   translation 0.75 0 0.625
   rotation 0 1 0 -1.5707953071795862
   name "wall(2)"
@@ -61,10 +73,230 @@ DEF WALL Wall {
   }
 }
 DEF WALL Wall {
-  translation 0.75 0 1.125
+  translation 1.25 0 0.625
   rotation 0 1 0 -1.5707953071795862
+  name "wall(9)"
+  size 0.25 0.25 0.05
+  appearance Appearance {
+    material Material {
+      diffuseColor 0.933333 0.933333 0.92549
+    }
+  }
+}
+DEF WALL Wall {
+  translation 1 0 0.625
+  rotation 0 1 0 -1.5707953071795862
+  name "wall(15)"
+  size 0.25 0.25 0.05
+  appearance Appearance {
+    material Material {
+      diffuseColor 0.933333 0.933333 0.92549
+    }
+  }
+}
+DEF WALL Wall {
+  translation 0.75 0 1.125
+  rotation 0 -0.9999999999999999 0 1.5707953071795862
   name "wall(3)"
   size 0.25 0.25 0.05
+  appearance Appearance {
+    material Material {
+      diffuseColor 0.933333 0.933333 0.92549
+    }
+  }
+}
+DEF WALL Wall {
+  translation 0.875 0 1.25
+  rotation 0 1 0 1.01503e-06
+  name "wall(11)"
+  size 0.25 0.25 0.05
+  appearance Appearance {
+    material Material {
+      diffuseColor 0.933333 0.933333 0.92549
+    }
+  }
+}
+DEF WALL Wall {
+  translation 0.875 0 1
+  rotation 0 1 0 1.01503e-06
+  name "wall(12)"
+  size 0.25 0.25 0.05
+  appearance Appearance {
+    material Material {
+      diffuseColor 0.933333 0.933333 0.92549
+    }
+  }
+}
+DEF WALL Wall {
+  translation 0.875 0 0.5
+  rotation 0 1 0 1.01503e-06
+  name "wall(17)"
+  size 0.25 0.25 0.05
+  appearance Appearance {
+    material Material {
+      diffuseColor 0.933333 0.933333 0.92549
+    }
+  }
+}
+DEF WALL Wall {
+  translation 0.375 0 0.5
+  rotation 0 1 0 1.01503e-06
+  name "wall(18)"
+  size 0.25 0.25 0.05
+  appearance Appearance {
+    material Material {
+      diffuseColor 0.933333 0.933333 0.92549
+    }
+  }
+}
+DEF WALL Wall {
+  translation 0.375 0 0.75
+  rotation 0 1 0 1.01503e-06
+  name "wall(19)"
+  size 0.25 0.25 0.05
+  appearance Appearance {
+    material Material {
+      diffuseColor 0.933333 0.933333 0.92549
+    }
+  }
+}
+DEF WALL Wall {
+  translation 0.375 0 1.25
+  rotation 0 1 0 1.01503e-06
+  name "wall(21)"
+  size 0.25 0.25 0.05
+  appearance Appearance {
+    material Material {
+      diffuseColor 0.933333 0.933333 0.92549
+    }
+  }
+}
+DEF WALL Wall {
+  translation 0.375 0 0.25
+  rotation 0 1 0 1.01503e-06
+  name "wall(20)"
+  size 0.25 0.25 0.05
+  appearance Appearance {
+    material Material {
+      diffuseColor 0.933333 0.933333 0.92549
+    }
+  }
+}
+DEF WALL Wall {
+  translation 1.125 0 1
+  rotation 0 1 0 1.01503e-06
+  name "wall(13)"
+  size 0.25 0.25 0.05
+  appearance Appearance {
+    material Material {
+      diffuseColor 0.933333 0.933333 0.92549
+    }
+  }
+}
+DEF WALL Wall {
+  translation 1.125 0 0.75
+  rotation 0 1 0 1.01503e-06
+  name "wall(14)"
+  size 0.25 0.25 0.05
+  appearance Appearance {
+    material Material {
+      diffuseColor 0.933333 0.933333 0.92549
+    }
+  }
+}
+DEF WALL Wall {
+  translation 1.125 0 0.25
+  rotation 0 1 0 1.01503e-06
+  name "wall(16)"
+  size 0.25 0.25 0.05
+  appearance Appearance {
+    material Material {
+      diffuseColor 0.933333 0.933333 0.92549
+    }
+  }
+}
+DEF WALL Wall {
+  translation 1.25 0 1.125
+  rotation 0 1 0 -1.5707953071795862
+  name "wall(10)"
+  size 0.25 0.25 0.05
+  appearance Appearance {
+    material Material {
+      diffuseColor 0.933333 0.933333 0.92549
+    }
+  }
+}
+DEF WALL Wall {
+  translation 0.5 0 1.125
+  rotation 0 1 0 -1.5707953071795862
+  name "wall(5)"
+  size 0.25 0.25 0.05
+  appearance Appearance {
+    material Material {
+      diffuseColor 0.933333 0.933333 0.92549
+    }
+  }
+}
+DEF WALL Wall {
+  translation 0.5 0 0.625
+  rotation 0 1 0 -1.5707953071795862
+  name "wall(6)"
+  size 0.25 0.25 0.05
+  appearance Appearance {
+    material Material {
+      diffuseColor 0.933333 0.933333 0.92549
+    }
+  }
+}
+DEF WALL Wall {
+  translation 0.25 0 0.875
+  rotation 0 1 0 -1.5707953071795862
+  name "wall(7)"
+  size 0.25 0.25 0.05
+  appearance Appearance {
+    material Material {
+      diffuseColor 0.933333 0.933333 0.92549
+    }
+  }
+}
+DEF BOARDER Wall {
+  translation 0 0 0.75
+  rotation 0 1 0 -1.5707953071795862
+  name "wall(23)"
+  size 1.5 0.25 0.05
+  appearance Appearance {
+    material Material {
+      diffuseColor 0.933333 0.933333 0.92549
+    }
+  }
+}
+DEF BOARDER Wall {
+  translation 1.5 0 0.75
+  rotation 0 1 0 -1.5707953071795862
+  name "wall(24)"
+  size 1.5 0.25 0.05
+  appearance Appearance {
+    material Material {
+      diffuseColor 0.933333 0.933333 0.92549
+    }
+  }
+}
+DEF BOARDER Wall {
+  translation 0.75 0 0
+  rotation 0 1 0 1.01503e-06
+  name "wall(25)"
+  size 1.5 0.25 0.05
+  appearance Appearance {
+    material Material {
+      diffuseColor 0.933333 0.933333 0.92549
+    }
+  }
+}
+DEF BOARDER Wall {
+  translation 0.75 0 1.5
+  rotation 0 1 0 1.01503e-06
+  name "wall(26)"
+  size 1.5 0.25 0.05
   appearance Appearance {
     material Material {
       diffuseColor 0.933333 0.933333 0.92549
