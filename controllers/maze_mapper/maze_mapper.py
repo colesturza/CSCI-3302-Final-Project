@@ -1,16 +1,20 @@
-"""maze_mapper controller."""
+"""
+maze_mapper controller.
+"""
 
 import math
 import numpy as np
 import cv2
 from controller import Robot, Motor, DistanceSensor
 
-import supervisor
+"""
+Initial setup up and global variables.
+"""
 
-# supervisor.init_supervisor()
-# robot = supervisor.supervisor
+robot = Robot()  # initialize the robot
 
-robot = Robot()
+state = 'get_target'
+sub_state = 'bearing'
 
 LIDAR_SENSOR_MAX_RANGE = 0.25  # Meters
 LIDAR_ANGLE_BINS = 21  # 21 Bins to cover the angular range of the lidar, centered at 10
@@ -20,13 +24,6 @@ LIDAR_ANGLE_RANGE = 3.14159  # 180 degrees, 3.14159 radians
 pose_x = 2.125
 pose_y = 0.125
 pose_theta = math.pi
-
-# velocity reduction percent
-MAX_VEL_REDUCTION = 1  # Run robot at 20% of max speed
-
-# ePuck Constants
-EPUCK_AXLE_DIAMETER = 0.053  # ePuck's wheels are 53mm apart.
-EPUCK_MAX_WHEEL_SPEED = 0.125 * MAX_VEL_REDUCTION  # To be filled in with ePuck wheel speed in m/s
 
 # get the time step of the current world.
 SIM_TIMESTEP = int(robot.getBasicTimeStep())
@@ -90,8 +87,16 @@ world_map[5, 0, 0] = 1
 camera = robot.getCamera('camera')
 camera.enable(SIM_TIMESTEP)
 
+"""
+End of setup and global variables.
+"""
+
 
 def find_color():
+    """
+    Determines if the image of the wall in front of the robot is either red, green, blue, or yellow.
+    Returns either None (if it is a white wall) or a string for the respective color.
+    """
     image = np.array(camera.getImageArray())
 
     print(image.shape)
@@ -150,21 +155,25 @@ def transform_map_coord_world_coord(map_coord):
 
 
 def update_map():
+    """
+    Updates the world map using the lidar sensor readings and determines if the wall in front of the
+    robot is a color of interest.
+    """
     global pose_x, pose_y, pose_theta
     global lidar_readings_array, CENTER_LIDAR_IDX, LEFT_LIDAR_IDX, RIGHT_LIDAR_IDX
     global world_map
 
     map_coords = transform_world_coord_to_map_coord((pose_x, pose_y))
 
+    # set the current tile to visited
     if world_map[map_coords][0] == 0:
         world_map[map_coords][0] = 1
 
     facing = None
 
-    facing_degree = pose_theta * 180 / math.pi
+    facing_degree = pose_theta * 180 / math.pi  # convert to degrees for readability
 
-    print('facing degree:', facing_degree)
-
+    # Determine the directional facing
     if math.isclose(facing_degree, 90, abs_tol=15):
         facing = 'North'
 
@@ -177,13 +186,13 @@ def update_map():
     elif math.isclose(facing_degree, 180, abs_tol=15):
         facing = 'West'
 
+    # check for the presence of a wall
     center = True if lidar_readings_array[CENTER_LIDAR_IDX] <= LIDAR_SENSOR_MAX_RANGE else False
     left = True if lidar_readings_array[LEFT_LIDAR_IDX] <= LIDAR_SENSOR_MAX_RANGE else False
     right = True if lidar_readings_array[RIGHT_LIDAR_IDX] <= LIDAR_SENSOR_MAX_RANGE else False
 
     if center:
-
-        color = find_color()
+        color = find_color()  # check if the wall is a color of interest
 
         if color is not None:
             print(color)
@@ -273,16 +282,20 @@ def get_next_target():
         else:
             weights.append(1)
 
-    weights = np.array(weights) / np.sum(weights)
+    weights = np.array(weights) / np.sum(weights)  # convert the weights to percentages
 
-    new_target_idx = np.random.choice(range(len(candidate_targets)), p=weights)
+    new_target_idx = np.random.choice(range(len(candidate_targets)), p=weights)  # choose at random based on weights
 
-    print(np.sum(world_map[:, :, 0]))
+    print(np.sum(world_map[:, :, 0]))  # output the total number of tiles visited
 
     return candidate_targets[new_target_idx]
 
 
-def world_map_to_graph(world_map):
+def world_map_to_graph():
+    """
+    Convert the world map to a graph, represented as an adjacency list.
+    """
+    global world_map
     graph_dict = {}
 
     for i in range(len(world_map)):
@@ -314,6 +327,9 @@ def world_map_to_graph(world_map):
 
 
 def find_shortest_path(graph_dict, start, goal):
+    """
+    Find the shortest path between two nodes using BFS.
+    """
     dist = {}
     prev = {}
 
@@ -345,98 +361,114 @@ def find_shortest_path(graph_dict, start, goal):
     return path[::-1]
 
 
-target_pose = None
-target_bearing = None
+"""
+Start the simulation.
+"""
 
-# Sensor burn-in period
-for i in range(10):
-    robot.step(SIM_TIMESTEP)
 
-state = 'get_target'
-sub_state = 'bearing'
+def main():
+    global robot, state, sub_state, world_map
+    global leftMotor, rightMotor, SIM_TIMESTEP
+    global pose_x, pose_y, pose_theta
+    global lidar_readings_array
 
-first_loop = True
+    for i in range(10):
+        robot.step(SIM_TIMESTEP)
 
-# Main Control Loop:
-while robot.step(SIM_TIMESTEP) != -1:
+    first_loop = True
 
-    pose_x, _, pose_y = gps.getValues()
-    compass_values = compass.getValues()
-    pose_theta = math.atan2(compass_values[2], compass_values[0])  # get_bearing_in_degrees(compass_values)
+    target_bearing = None
+    target_pose = None
 
-    if pose_theta >= 0:
-        pose_theta = pose_theta
-    else:
-        pose_theta = (2 * math.pi + pose_theta)
+    # Main Control Loop:
+    while robot.step(SIM_TIMESTEP) != -1:
 
-    lidar_readings_array = lidar.getRangeImage()
+        # update odometry
+        pose_x, _, pose_y = gps.getValues()
+        compass_values = compass.getValues()
+        pose_theta = math.atan2(compass_values[2], compass_values[0])  # get_bearing_in_degrees(compass_values)
 
-    # Update the walls at the starting location
-    if first_loop:
-        update_map()
-        first_loop = False
-
-    if state == "get_target":
-
-        target_pose_map_coords = get_next_target()
-        if target_pose_map_coords is None:
-            leftMotor.setVelocity(0)
-            rightMotor.setVelocity(0)
-            print('Here')
-            break
-
-        current_pose_map_coords = transform_world_coord_to_map_coord((pose_x, pose_y))
-
-        target_pose = transform_map_coord_world_coord(target_pose_map_coords)
-
-        target_bearing = math.atan2(target_pose[0] - pose_x, target_pose[1] - pose_y)
-
-        if target_bearing >= 0:
-            target_bearing = target_bearing
+        if pose_theta >= 0:
+            pose_theta = pose_theta
         else:
-            target_bearing = (2*math.pi + target_bearing)
+            pose_theta = (2 * math.pi + pose_theta)
 
-        state = "turn_drive_turn_control"
+        lidar_readings_array = lidar.getRangeImage()  # get lidar readings
 
-    elif state == "turn_drive_turn_control":
+        # Update the walls at the starting location
+        if first_loop:
+            update_map()
+            first_loop = False
 
-        bearing_error = pose_theta - target_bearing
-        distance_error = np.linalg.norm(np.array(target_pose) - np.array([pose_x, pose_y]))
+        # get the next target in the mapping phase
+        if state == "get_target":
 
-        if sub_state == "bearing":
-            if bearing_error > 0.005:
-                leftMotor.setVelocity(leftMotor.getMaxVelocity() * 0.05)
-                rightMotor.setVelocity(-rightMotor.getMaxVelocity() * 0.05)
-            elif bearing_error < -0.005:
-                leftMotor.setVelocity(-leftMotor.getMaxVelocity() * 0.05)
-                rightMotor.setVelocity(rightMotor.getMaxVelocity() * 0.05)
-            else:
+            # get the next target and determine if the entire maze has been searched
+            target_pose_map_coords = get_next_target()
+            if target_pose_map_coords is None:
+                # mapping is complete
                 leftMotor.setVelocity(0)
                 rightMotor.setVelocity(0)
-                sub_state = "distance"
-        elif sub_state == "distance":
-            if distance_error > 0.025:
-                leftMotor.setVelocity(leftMotor.getMaxVelocity() * 0.2)
-                rightMotor.setVelocity(rightMotor.getMaxVelocity() * 0.2)
+                print('Here')
+                break
+
+            target_pose = transform_map_coord_world_coord(target_pose_map_coords)  # retrieve the target world coords
+            # not entirely sure why we had to switch the x and y, but it works this way.
+            target_bearing = math.atan2(target_pose[0] - pose_x, target_pose[1] - pose_y)  # find bearing error
+
+            if target_bearing >= 0:
+                target_bearing = target_bearing
             else:
-                leftMotor.setVelocity(0)
-                rightMotor.setVelocity(0)
+                target_bearing = (2 * math.pi + target_bearing)
 
-                update_map()
+            state = "turn_drive_turn_control"
 
-                sub_state = "bearing"
-                state = "get_target"
+        # move to the target location
+        elif state == "turn_drive_turn_control":
 
-print(world_map[:, :, 0])
-print(world_map[:, :, 1])
-print(world_map[:, :, 2])
-print(world_map[:, :, 3])
-print(world_map[:, :, 4])
+            bearing_error = pose_theta - target_bearing
+            distance_error = np.linalg.norm(np.array(target_pose) - np.array([pose_x, pose_y]))
 
-G = world_map_to_graph(world_map)
-path = find_shortest_path(G, (0, 0), (5, 3))
+            # decrease the bearing error
+            if sub_state == "bearing":
+                if bearing_error > 0.005:
+                    leftMotor.setVelocity(leftMotor.getMaxVelocity() * 0.05)
+                    rightMotor.setVelocity(-rightMotor.getMaxVelocity() * 0.05)
+                elif bearing_error < -0.005:
+                    leftMotor.setVelocity(-leftMotor.getMaxVelocity() * 0.05)
+                    rightMotor.setVelocity(rightMotor.getMaxVelocity() * 0.05)
+                else:
+                    leftMotor.setVelocity(0)
+                    rightMotor.setVelocity(0)
+                    sub_state = "distance"
+            # decrease the distance error
+            elif sub_state == "distance":
+                if distance_error > 0.025:
+                    leftMotor.setVelocity(leftMotor.getMaxVelocity() * 0.2)
+                    rightMotor.setVelocity(rightMotor.getMaxVelocity() * 0.2)
+                else:
+                    leftMotor.setVelocity(0)
+                    rightMotor.setVelocity(0)
 
-print(G)
-print(path)
+                    update_map()  # update the map once in the center of the target tile
 
-# Enter here exit cleanup code.
+                    sub_state = "bearing"
+                    state = "get_target"
+
+    print(world_map[:, :, 0])
+    print(world_map[:, :, 1])
+    print(world_map[:, :, 2])
+    print(world_map[:, :, 3])
+    print(world_map[:, :, 4])
+
+    graph = world_map_to_graph()
+    path = find_shortest_path(graph, (0, 0), (5, 3))
+
+    print(graph)
+    print(path)
+
+    # Enter here exit cleanup code.
+
+
+if __name__ == "__main__":
+    main()
