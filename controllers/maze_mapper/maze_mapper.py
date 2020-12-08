@@ -433,4 +433,10 @@ print(world_map[:, :, 2])
 print(world_map[:, :, 3])
 print(world_map[:, :, 4])
 
+G = world_map_to_graph(world_map)
+path = find_shortest_path(G, (0, 0), (5, 3))
+
+print(G)
+print(path)
+
 # Enter here exit cleanup code.
