@@ -92,38 +92,27 @@ camera.enable(SIM_TIMESTEP)
 End of setup and global variables.
 """
 
-color_ranges = []
 
-
-def add_color_range_to_detect(lower_bound, upper_bound):
-    """
-    @param lower_bound: Tuple of BGR values
-    @param upper_bound: Tuple of BGR values
-    """
-    global color_ranges
-    color_ranges.append([lower_bound, upper_bound])  # Add color range to global list of color ranges to detect
-
-
-def check_if_color_in_range(bgr_tuple):
+def check_if_color_in_range(bgr_tuple, lower_bound, upper_bound):
     """
     @param bgr_tuple: Tuple of BGR values
+    @param lower_bound
+    @param upper_bound
     @returns Boolean: True if bgr_tuple is in any of the color ranges specified in color_ranges
     """
-    global color_ranges
-    for entry in color_ranges:
-        lower, upper = entry[0], entry[1]
-        in_range = True
-        for i in range(len(bgr_tuple)):
-            if bgr_tuple[i] < lower[i] or bgr_tuple[i] > upper[i]:
-                in_range = False
-                break
-        if in_range:
-            return True
+    in_range = True
+    for i in range(len(bgr_tuple)):
+        if bgr_tuple[i] < lower_bound[i] or bgr_tuple[i] > upper_bound[i]:
+            in_range = False
+            break
+
+    if in_range:
+        return True
 
     return False
 
 
-def do_color_filtering(img):
+def do_color_filtering(img, lower_bound, upper_bound):
     # Color Filtering
     # Objective: Take an RGB image as input, and create a "mask image" to filter out irrelevant pixels
     # Definition "mask image":
@@ -150,7 +139,7 @@ def do_color_filtering(img):
 
         for j in range(img_width):
 
-            if check_if_color_in_range(img[i, j]):
+            if check_if_color_in_range(img[i, j], lower_bound, upper_bound):
 
                 mask[i, j] = 1
 
@@ -231,66 +220,33 @@ def find_color():
     image = np.array(camera.getImageArray(), dtype=np.float32)
     image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
 
-    mask = do_color_filtering(image)
+    mask = do_color_filtering(image, [0, 0, 135], [70, 90, 255])
     blobs = get_blobs(mask)
-
     if blobs:
         blob = max(blobs, key=lambda el: len(el))
-
         if len(blob) > 100:
-            return True
+            return 'Red'
 
-    # # Check for red
-    # red_mask = cv2.inRange(image, np.array([0., 0., 40.]), np.array([70., 90., 255.]))
-    # contours, _ = cv2.findContours(red_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
-    #
-    # if transform_world_coord_to_map_coord((pose_x, pose_y)) == (4, 3):
-    #     print(red_mask)
-    #     print("At red tile")
-    #     pickle.dump(image, open('red_image', 'wb'))
-    #     cv2.imshow('red', image)
-    #     cv2.waitKey()
-    #     cv2.destroyAllWindows()
-    #
-    # if contours:
-    #     blob = max(contours, key=lambda el: cv2.contourArea(el))
-    #     if len(blob) > 250:
-    #         print('Red')
-    #         return 'Red'
-    #
-    # # Check for green
-    # green_mask = cv2.inRange(image, np.array([15, 110, 0]), np.array([130, 240, 110]))
-    # contours, _ = cv2.findContours(green_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
-    #
-    # if transform_world_coord_to_map_coord((pose_x, pose_y)) == (2, 4):
-    #     print("At green tile")
-    #     pickle.dump(image, open('green_image', 'wb'))
-    #     cv2.imshow('green', image)
-    #     cv2.waitKey()
-    #     cv2.destroyAllWindows()
-    #
-    # if contours:
-    #     blob = max(contours, key=lambda el: cv2.contourArea(el))
-    #     if len(blob) > 250:
-    #         print('Green')
-    #         return 'Green'
-    #
-    # # Check for blue
-    # blue_mask = cv2.inRange(image, np.array([40, 0, 0]), np.array([255, 140, 140]))
-    # contours, _ = cv2.findContours(blue_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
-    #
-    # if transform_world_coord_to_map_coord((pose_x, pose_y)) == (1, 1):
-    #     print("At blue tile")
-    #     pickle.dump(image, open('blue_image', 'wb'))
-    #     cv2.imshow('blue', image)
-    #     cv2.waitKey()
-    #     cv2.destroyAllWindows()
-    #
-    # if contours:
-    #     blob = max(contours, key=lambda el: cv2.contourArea(el))
-    #     if len(blob) > 250:
-    #         print('Blue')
-    #         return 'Blue'
+    mask = do_color_filtering(image, [0, 110, 0], [130, 240, 110])
+    blobs = get_blobs(mask)
+    if blobs:
+        blob = max(blobs, key=lambda el: len(el))
+        if len(blob) > 100:
+            return 'Green'
+
+    mask = do_color_filtering(image, [130, 0, 0], [255, 140, 140])
+    blobs = get_blobs(mask)
+    if blobs:
+        blob = max(blobs, key=lambda el: len(el))
+        if len(blob) > 100:
+            return 'Blue'
+
+    mask = do_color_filtering(image, [0, 130, 200], [60, 255, 255])
+    blobs = get_blobs(mask)
+    if blobs:
+        blob = max(blobs, key=lambda el: len(el))
+        if len(blob) > 100:
+            return 'Yellow'
 
     return None
 
@@ -371,7 +327,14 @@ def update_map():
         color = find_color()  # check if the wall is a color of interest
 
         if color is not None:
-            print(color)
+            if color == 'Red':
+                world_map[map_coords][5] = 1
+            if color == 'Green':
+                world_map[map_coords][5] = 2
+            if color == 'Blue':
+                world_map[map_coords][5] = 3
+            if color == 'Yellow':
+                world_map[map_coords][5] = 4
 
         if facing == 'North':
             world_map[map_coords][1] = 1
@@ -548,18 +511,21 @@ def main():
     global pose_x, pose_y, pose_theta
     global lidar_readings_array
 
-    add_color_range_to_detect([0, 0, 135], [70, 90, 255])  # Detect red
-    add_color_range_to_detect([15, 110, 0], [130, 240, 110])  # Detect green
-    add_color_range_to_detect([130, 0, 0], [255, 140, 140])  # Detect blue
-    add_color_range_to_detect([0, 130, 200], [60, 255, 255])  # Detect yellow
-
     for i in range(10):
         robot.step(SIM_TIMESTEP)
 
     first_loop = True
+    start_pose = None  # start position
 
     target_bearing = None
     target_pose = None
+
+    target_poses = []  # list of target poses for the robot to follow
+
+    color_order = ['Red', 'Green', 'Blue']
+    color_idx = -1  # current color in the color order, -1 is the starting position
+
+    graph = None  # graph of world map
 
     # Main Control Loop:
     while robot.step(SIM_TIMESTEP) != -1:
@@ -580,6 +546,7 @@ def main():
         if first_loop:
             update_map()
             first_loop = False
+            start_pose = transform_world_coord_to_map_coord((pose_x, pose_y))  # save start location
 
         # get the next target in the mapping phase
         if state == "get_target":
@@ -590,8 +557,10 @@ def main():
                 # mapping is complete
                 leftMotor.setVelocity(0)
                 rightMotor.setVelocity(0)
-                print('Here')
-                break
+                print('here')
+                graph = world_map_to_graph()  # create the graph for the world
+                state = 'get_path'
+                continue
 
             target_pose = transform_map_coord_world_coord(target_pose_map_coords)  # retrieve the target world coords
             # not entirely sure why we had to switch the x and y, but it works this way.
@@ -602,16 +571,16 @@ def main():
             else:
                 target_bearing = (2 * math.pi + target_bearing)
 
-            state = "turn_drive_turn_control"
+            state = 'turn_drive_turn_control_mapping'
 
-        # move to the target location
-        elif state == "turn_drive_turn_control":
+        # move to the target location using the random targets and map afterwards
+        elif state == 'turn_drive_turn_control_mapping':
 
             bearing_error = pose_theta - target_bearing
             distance_error = np.linalg.norm(np.array(target_pose) - np.array([pose_x, pose_y]))
 
             # decrease the bearing error
-            if sub_state == "bearing":
+            if sub_state == 'bearing':
                 if bearing_error > 0.005:
                     leftMotor.setVelocity(leftMotor.getMaxVelocity() * 0.05)
                     rightMotor.setVelocity(-rightMotor.getMaxVelocity() * 0.05)
@@ -621,9 +590,9 @@ def main():
                 else:
                     leftMotor.setVelocity(0)
                     rightMotor.setVelocity(0)
-                    sub_state = "distance"
+                    sub_state = 'distance'
             # decrease the distance error
-            elif sub_state == "distance":
+            elif sub_state == 'distance':
                 if distance_error > 0.025:
                     leftMotor.setVelocity(leftMotor.getMaxVelocity() * 0.2)
                     rightMotor.setVelocity(rightMotor.getMaxVelocity() * 0.2)
@@ -633,20 +602,101 @@ def main():
 
                     update_map()  # update the map once in the center of the target tile
 
-                    sub_state = "bearing"
-                    state = "get_target"
+                    sub_state = 'bearing'
+                    state = 'get_target'
+
+        # move to the target location using bfs path targets
+        elif state == 'turn_drive_turn_control':
+
+            bearing_error = pose_theta - target_bearing
+            distance_error = np.linalg.norm(np.array(target_pose) - np.array([pose_x, pose_y]))
+
+            # decrease the bearing error
+            if sub_state == 'bearing':
+                if bearing_error > 0.005:
+                    leftMotor.setVelocity(leftMotor.getMaxVelocity() * 0.05)
+                    rightMotor.setVelocity(-rightMotor.getMaxVelocity() * 0.05)
+                elif bearing_error < -0.005:
+                    leftMotor.setVelocity(-leftMotor.getMaxVelocity() * 0.05)
+                    rightMotor.setVelocity(rightMotor.getMaxVelocity() * 0.05)
+                else:
+                    leftMotor.setVelocity(0)
+                    rightMotor.setVelocity(0)
+                    sub_state = 'distance'
+            # decrease the distance error
+            elif sub_state == 'distance':
+                if distance_error > 0.025:
+                    leftMotor.setVelocity(leftMotor.getMaxVelocity() * 0.2)
+                    rightMotor.setVelocity(rightMotor.getMaxVelocity() * 0.2)
+                else:
+                    leftMotor.setVelocity(0)
+                    rightMotor.setVelocity(0)
+                    sub_state = 'bearing'
+                    state = 'bfs_get_target'
+
+        elif state == 'bfs_get_target':
+
+            # get new target
+            if target_poses:
+                target_pose_map_coords = target_poses.pop(0)
+            else:
+                # no new targets
+                state = 'get_path'
+                continue
+
+            target_pose = transform_map_coord_world_coord(target_pose_map_coords)  # retrieve the target world coords
+            # not entirely sure why we had to switch the x and y, but it works this way.
+            target_bearing = math.atan2(target_pose[0] - pose_x, target_pose[1] - pose_y)  # find bearing error
+
+            if target_bearing >= 0:
+                target_bearing = target_bearing
+            else:
+                target_bearing = (2 * math.pi + target_bearing)
+
+            state = 'turn_drive_turn_control'
+
+        elif state == 'get_path':
+
+            current_map_coords = transform_world_coord_to_map_coord((pose_x, pose_y))
+
+            if color_idx == -1:
+                target_poses = find_shortest_path(graph, current_map_coords, start_pose)
+                color_idx += 1
+                state = 'bfs_get_target'
+
+            elif color_idx < len(color_order):
+
+                color_map_coords = (0, 0)
+
+                if color_order[color_idx] == 'Red':
+                    x, y = np.where(world_map[:, :, 5] == 1)
+                    color_map_coords = (x[0], y[0])
+                elif color_order[color_idx] == 'Green':
+                    x, y = np.where(world_map[:, :, 5] == 2)
+                    color_map_coords = (x[0], y[0])
+                elif color_order[color_idx] == 'Blue':
+                    x, y = np.where(world_map[:, :, 5] == 3)
+                    color_map_coords = (x[0], y[0])
+                elif color_order[color_idx] == 'Yellow':
+                    x, y = np.where(world_map[:, :, 5] == 4)
+                    color_map_coords = (x[0], y[0])
+
+                print(color_map_coords)
+
+                target_poses = find_shortest_path(graph, current_map_coords, color_map_coords)
+                color_idx += 1
+                state = 'bfs_get_target'
+
+            # Simulation finished
+            else:
+                print('Finished')
+                break
 
     print(world_map[:, :, 0])
     print(world_map[:, :, 1])
     print(world_map[:, :, 2])
     print(world_map[:, :, 3])
     print(world_map[:, :, 4])
-
-    graph = world_map_to_graph()
-    path = find_shortest_path(graph, (0, 0), (5, 3))
-
-    print(graph)
-    print(path)
 
     # Enter here exit cleanup code.
 
