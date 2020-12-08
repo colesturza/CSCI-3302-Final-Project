@@ -69,17 +69,17 @@ RIGHT_LIDAR_IDX = 20
 
 # Map Variables
 MAP_BOUNDS = [1.5, 1.5]
-CELL_RESOLUTIONS = np.array([0.25, 0.25])  # 10cm per cell
+CELL_RESOLUTIONS = np.array([0.25, 0.25])  # 25cm per cell
 NUM_X_CELLS = int(MAP_BOUNDS[0] / CELL_RESOLUTIONS[0])
 NUM_Y_CELLS = int(MAP_BOUNDS[1] / CELL_RESOLUTIONS[1])
 
 world_map = np.zeros([NUM_Y_CELLS, NUM_X_CELLS, 6])
 
 # Set the boundary walls
-world_map[:, 5, 1] = 1  # North facing wall
+world_map[:, NUM_X_CELLS-1, 1] = 1  # North facing wall
 world_map[0, :, 2] = 1  # West facing wall
 world_map[:, 0, 3] = 1  # South facing wall
-world_map[5, :, 4] = 1  # East facing wall
+world_map[NUM_Y_CELLS-1, :, 4] = 1  # East facing wall
 
 # Set starting spot to visited
 world_map[5, 0, 0] = 1
