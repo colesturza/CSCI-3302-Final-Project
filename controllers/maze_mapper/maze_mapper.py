@@ -303,6 +303,68 @@ def get_next_target():
 
     return candidate_targets[new_target_idx]
 
+def world_map_to_graph(world_map):
+
+	graph_dict = {}
+
+	for i in range(len(world_map)):
+		for j in range(len(world_map[0])):
+
+			graph_dict[(i, j)] = []
+
+			# if not visited, do nothing
+			if world_map[i, j, 0] == 0:
+				continue
+
+			# if no north wall, add adjacency to north tile
+			if world_map[i, j, 1] == 0:
+				graph_dict[(i, j)].append((i, j+1))
+
+			# if no west wall, add adjacency to west tile
+			if world_map[i, j, 2] == 0:
+				graph_dict[(i, j)].append((i-1, j))
+
+			# if no south wall, add adjacency to south tile
+			if world_map[i, j, 3] == 0:
+				graph_dict[(i, j)].append((i, j-1))
+
+			# if no east wall, add adjacency to east tile
+			if world_map[i, j, 4] == 0:
+				graph_dict[(i, j)].append((i+1, j))
+
+	return graph_dict
+
+def find_shortest_path(graph_dict, start, goal):
+	dist = {}
+	prev = {}
+
+	for key in graph_dict.keys():
+		dist[key] = math.inf
+		prev[key] = None
+
+	dist[start] = 0
+
+	q_cost = dist.copy()
+
+	while len(q_cost) > 0:
+		u = min(q_cost, key=q_cost.get)
+		_ = q_cost.pop(u)
+		for neighbor in graph_dict[u]:
+			new_dist = dist[u] + 1
+			if new_dist < dist[neighbor]:
+				dist[neighbor] = new_dist
+				q_cost[neighbor] = new_dist
+				prev[neighbor] = u
+
+	path = [goal]
+	curr = prev[goal]
+	while curr != start:
+		path.append(curr)
+		curr = prev[curr]
+	path.append(curr)
+
+	return path[::-1]
+
 
 target_pose = None
 target_bearing = None
