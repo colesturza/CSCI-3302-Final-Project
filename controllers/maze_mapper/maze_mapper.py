@@ -203,7 +203,8 @@ def get_target_bearing(to_coords, from_coords):
 
 
 # Important IK Variable storing final desired pose
-target_poses = [(7, 0), (6, 0), (5, 0), (4, 0), (3, 0), (2, 0), (1, 0), (0, 0)]  # Populated by the supervisor, only when the target is moved.
+target_poses = [(7, 0), (6, 0), (5, 0), (4, 0), (3, 0), (2, 0), (1, 0), (0, 0),
+                (0, 1), (0, 2), (0, 3), (1, 3), (2, 3), (3, 3)]  # Populated by the supervisor, only when the target is moved.
 target_pose = None
 target_bearing = None
 
