@@ -165,23 +165,21 @@ def update_map():
 
     print('facing degree:', facing_degree)
 
-    if math.isclose(facing_degree, 90, abs_tol=10):
+    if math.isclose(facing_degree, 90, abs_tol=15):
         facing = 'North'
 
-    elif math.isclose(facing_degree, 360, abs_tol=10) or math.isclose(facing_degree, 0, abs_tol=10):
+    elif math.isclose(facing_degree, 360, abs_tol=15) or math.isclose(facing_degree, 0, abs_tol=15):
         facing = 'East'
 
-    elif math.isclose(facing_degree, 270, abs_tol=10):
+    elif math.isclose(facing_degree, 270, abs_tol=15):
         facing = 'South'
 
-    elif math.isclose(facing_degree, 180, abs_tol=10):
+    elif math.isclose(facing_degree, 180, abs_tol=15):
         facing = 'West'
 
     center = True if lidar_readings_array[CENTER_LIDAR_IDX] <= LIDAR_SENSOR_MAX_RANGE else False
     left = True if lidar_readings_array[LEFT_LIDAR_IDX] <= LIDAR_SENSOR_MAX_RANGE else False
     right = True if lidar_readings_array[RIGHT_LIDAR_IDX] <= LIDAR_SENSOR_MAX_RANGE else False
-
-    print(facing, center, left, right)
 
     if center:
 
@@ -218,31 +216,6 @@ def update_map():
             world_map[map_coords][2] = 1  # Right sensor is facing South
         elif facing == 'East':
             world_map[map_coords][3] = 1  # Right sensor is facing West
-
-
-def get_bearing_in_degrees(values):
-    rad = math.atan2(compass_values[0], compass_values[2])
-    bearing = (rad - 1.5708) / math.pi * 180.0
-    if bearing < 0.0:
-        bearing = bearing + 360.0
-    return bearing
-
-
-def get_target_bearing(to_coords, from_coords):
-    """
-    Uses world map coordinates to get the target bearing in degrees
-    """
-    direction = (to_coords[0] - from_coords[0], to_coords[1] - from_coords[1])
-
-    print(direction, to_coords, from_coords)
-
-    if direction == (-1, 0):
-        return 360
-    if direction == (1, 0):
-        return 180
-    if direction == (0, 1):
-        return 90
-    return 270
 
 
 def get_next_target():
@@ -417,17 +390,11 @@ while robot.step(SIM_TIMESTEP) != -1:
         target_pose = transform_map_coord_world_coord(target_pose_map_coords)
 
         target_bearing = math.atan2(target_pose[0] - pose_x, target_pose[1] - pose_y)
-        print((pose_x, pose_y), target_pose)
-        print(pose_theta, target_bearing)
 
         if target_bearing >= 0:
             target_bearing = target_bearing
         else:
             target_bearing = (2*math.pi + target_bearing)
-
-        print(target_bearing)
-
-        # target_bearing = get_target_bearing(target_pose_map_coords, current_pose_map_coords)
 
         state = "turn_drive_turn_control"
 
@@ -435,8 +402,6 @@ while robot.step(SIM_TIMESTEP) != -1:
 
         bearing_error = pose_theta - target_bearing
         distance_error = np.linalg.norm(np.array(target_pose) - np.array([pose_x, pose_y]))
-
-        print(pose_theta, target_bearing, bearing_error, distance_error)
 
         if sub_state == "bearing":
             if bearing_error > 0.005:
@@ -461,21 +426,6 @@ while robot.step(SIM_TIMESTEP) != -1:
 
                 sub_state = "bearing"
                 state = "get_target"
-
-        # if bearing_error > 0.5:
-        #     leftMotor.setVelocity(-leftMotor.getMaxVelocity() * 0.05)
-        #     rightMotor.setVelocity(rightMotor.getMaxVelocity() * 0.05)
-        # elif distance_error > 0.05:
-        #     leftMotor.setVelocity(leftMotor.getMaxVelocity() * 0.2)
-        #     rightMotor.setVelocity(rightMotor.getMaxVelocity() * 0.2)
-        # else:
-        #     leftMotor.setVelocity(0)
-        #     rightMotor.setVelocity(0)
-        #
-        #     update_map()
-        #
-        #     sub_state = "bearing"
-        #     state = "get_target"
 
 print(world_map[:, :, 0])
 print(world_map[:, :, 1])
