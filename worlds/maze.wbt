@@ -4,8 +4,8 @@ WorldInfo {
   coordinateSystem "NUE"
 }
 Viewpoint {
-  orientation -0.5586727918290633 -0.6558560606280951 -0.5076785788344004 1.9149985723395924
-  position -0.4019816301535696 2.989865744805998 2.0243672479721178
+  orientation -0.8240450490905762 -0.42319694449221584 -0.37663523898031953 1.679490405414966
+  position 0.7690421505638205 3.4501516032763724 1.2625069365740966
   follow "e-puck"
 }
 TexturedBackground {
@@ -53,10 +53,9 @@ Wall {
   translation 0.875 0 1.525
   name "wall(60)"
   size 0.25 0.25 0.025
-  appearance Roughcast {
-    colorOverride 0.305882 0.603922 0.0235294
-    textureTransform TextureTransform {
-      scale 1 2.4
+  appearance Appearance {
+    material Material {
+      diffuseColor 0.45098 0.823529 0.0862745
     }
   }
 }
@@ -277,10 +276,9 @@ Wall {
   rotation 0 1 0 -1.5707953071795862
   name "wall(59)"
   size 0.25 0.25 0.025
-  appearance Roughcast {
-    colorOverride 0.12549 0.290196 0.529412
-    textureTransform TextureTransform {
-      scale 1 2.4
+  appearance Appearance {
+    material Material {
+      diffuseColor 0.203922 0.396078 0.643137
     }
   }
 }
@@ -319,10 +317,9 @@ Wall {
   rotation 0 1 0 -1.5707953071795862
   name "wall(58)"
   size 0.25 0.25 0.025
-  appearance Roughcast {
-    colorOverride 0.929412 0.831373 0
-    textureTransform TextureTransform {
-      scale 1 2.4
+  appearance Appearance {
+    material Material {
+      diffuseColor 0.929412 0.831373 0
     }
   }
 }
@@ -385,10 +382,9 @@ Wall {
   rotation 0 1 0 -1.5707953071795862
   name "wall(61)"
   size 0.25 0.25 0.025
-  appearance Roughcast {
-    colorOverride 0.8 0 0
-    textureTransform TextureTransform {
-      scale 1 2.4
+  appearance Appearance {
+    material Material {
+      diffuseColor 0.8 0 0
     }
   }
 }

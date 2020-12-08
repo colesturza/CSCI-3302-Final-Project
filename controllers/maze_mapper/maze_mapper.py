@@ -2,6 +2,7 @@
 
 import math
 import numpy as np
+import cv2
 from controller import Robot, Motor, DistanceSensor
 
 import supervisor
@@ -86,6 +87,29 @@ world_map[8, :, 4] = 1  # East facing wall
 # Set starting spot to visited
 world_map[8, 0, 0] = 1
 
+camera = robot.getCamera('camera')
+camera.enable(SIM_TIMESTEP)
+
+
+def find_color():
+
+    image = camera.getImageArray()
+
+    image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
+    mask = cv2.inRange(image, [0, 0, 135], [70, 90, 255])
+
+    _, contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL,
+                                      cv2.CHAIN_APPROX_NONE)
+
+    blob = max(contours, key=lambda el: cv2.contourArea(el))
+
+    print(blob)
+
+    if len(blob) > 100:
+        return 'Red'
+
+    return None
+
 
 def get_bounded_theta(theta):
     """
@@ -151,6 +175,12 @@ def update_map():
     right = True if lidar_readings_array[RIGHT_LIDAR_IDX] <= LIDAR_SENSOR_MAX_RANGE else False
 
     if center:
+
+        color = find_color()
+
+        if color is not None:
+            print(color)
+
         if facing == 'North':
             world_map[map_coords][1] = 1
         elif facing == 'West':
@@ -307,10 +337,9 @@ while robot.step(SIM_TIMESTEP) != -1:
 
         current_pose_map_coords = transform_world_coord_to_map_coord((pose_x, pose_y))
 
-        target_bearing = get_target_bearing(target_pose_map_coords, current_pose_map_coords)
         target_pose = transform_map_coord_world_coord(target_pose_map_coords)
+        target_bearing = get_target_bearing(target_pose_map_coords, current_pose_map_coords)
 
-        print(target_pose, target_bearing)
         state = "turn_drive_turn_control"
 
     elif state == "turn_drive_turn_control":
@@ -318,26 +347,41 @@ while robot.step(SIM_TIMESTEP) != -1:
         bearing_error = abs(target_bearing - pose_theta)
         distance_error = np.linalg.norm(np.array(target_pose) - np.array([pose_x, pose_y]))
 
-        if sub_state == "bearing":
-            if bearing_error > 0.5:
-                leftMotor.setVelocity(-leftMotor.getMaxVelocity() * 0.05)
-                rightMotor.setVelocity(rightMotor.getMaxVelocity() * 0.05)
-            else:
-                leftMotor.setVelocity(0)
-                rightMotor.setVelocity(0)
-                sub_state = "distance"
-        elif sub_state == "distance":
-            if distance_error > 0.05:
-                leftMotor.setVelocity(leftMotor.getMaxVelocity() * 0.2)
-                rightMotor.setVelocity(rightMotor.getMaxVelocity() * 0.2)
-            else:
-                leftMotor.setVelocity(0)
-                rightMotor.setVelocity(0)
+        # if sub_state == "bearing":
+        #     if bearing_error > 1:
+        #         leftMotor.setVelocity(-leftMotor.getMaxVelocity() * 0.05)
+        #         rightMotor.setVelocity(rightMotor.getMaxVelocity() * 0.05)
+        #     else:
+        #         leftMotor.setVelocity(0)
+        #         rightMotor.setVelocity(0)
+        #         sub_state = "distance"
+        # elif sub_state == "distance":
+        #     if distance_error > 0.05:
+        #         leftMotor.setVelocity(leftMotor.getMaxVelocity() * 0.2)
+        #         rightMotor.setVelocity(rightMotor.getMaxVelocity() * 0.2)
+        #     else:
+        #         leftMotor.setVelocity(0)
+        #         rightMotor.setVelocity(0)
+        #
+        #         update_map()
+        #
+        #         sub_state = "bearing"
+        #         state = "get_target"
 
-                update_map()
+        if bearing_error > 0.5:
+            leftMotor.setVelocity(-leftMotor.getMaxVelocity() * 0.05)
+            rightMotor.setVelocity(rightMotor.getMaxVelocity() * 0.05)
+        elif distance_error > 0.05:
+            leftMotor.setVelocity(leftMotor.getMaxVelocity() * 0.2)
+            rightMotor.setVelocity(rightMotor.getMaxVelocity() * 0.2)
+        else:
+            leftMotor.setVelocity(0)
+            rightMotor.setVelocity(0)
 
-                sub_state = "bearing"
-                state = "get_target"
+            update_map()
+
+            sub_state = "bearing"
+            state = "get_target"
 
 print(world_map[:, :, 0])
 print(world_map[:, :, 1])
