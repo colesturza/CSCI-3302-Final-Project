@@ -83,6 +83,9 @@ world_map[0, :, 2] = 1  # West facing wall
 world_map[:, 0, 3] = 1  # South facing wall
 world_map[8, :, 4] = 1  # East facing wall
 
+# Set starting spot to visited
+world_map[8, 0, 0] = 1
+
 
 def get_bounded_theta(theta):
     """
@@ -125,6 +128,7 @@ def update_map():
     global world_map
 
     map_coords = transform_world_coord_to_map_coord((pose_x, pose_y))
+
     if world_map[map_coords][0] == 0:
         world_map[map_coords][0] = 1
 
@@ -202,9 +206,70 @@ def get_target_bearing(to_coords, from_coords):
     return 270
 
 
-# Important IK Variable storing final desired pose
-target_poses = [(7, 0), (6, 0), (5, 0), (4, 0), (3, 0), (2, 0), (1, 0), (0, 0),
-                (0, 1), (0, 2), (0, 3), (1, 3), (2, 3), (3, 3)]  # Populated by the supervisor, only when the target is moved.
+def get_next_target():
+    """
+    Randomly pick a new target from the current location, heavily weight unvisited targets.
+    Returns None if all targets have been visited.
+    """
+    global pose_x, pose_y, pose_theta
+    global world_map
+
+    # we visited all the targets already
+    if world_map[:, :, 0].all():
+        return None
+
+    map_coords = transform_world_coord_to_map_coord((pose_x, pose_y))
+
+    x, y = map_coords
+
+    candidate_targets = []
+    weights = []
+
+    # check north tile
+    if world_map[x, y][1] != 1:
+        candidate_targets.append((x, y+1))
+
+        if world_map[x, y+1][0] == 0:
+            weights.append(10)
+        else:
+            weights.append(1)
+
+    # check west tile
+    if world_map[x, y][2] != 1:
+        candidate_targets.append((x-1, y))
+
+        if world_map[x-1, y][0] == 0:
+            weights.append(10)
+        else:
+            weights.append(1)
+
+    # check south tile
+    if world_map[x, y][3] != 1:
+        candidate_targets.append((x, y-1))
+
+        if world_map[x, y-1][0] == 0:
+            weights.append(10)
+        else:
+            weights.append(1)
+
+    # check east tile
+    if world_map[x, y][4] != 1:
+        candidate_targets.append((x+1, y))
+
+        if world_map[x+1, y][0] == 0:
+            weights.append(10)
+        else:
+            weights.append(1)
+
+    weights = np.array(weights)/np.sum(weights)
+
+    new_target_idx = np.random.choice(range(len(candidate_targets)), p=weights)
+
+    print(np.sum(world_map[:, :, 0]))
+
+    return candidate_targets[new_target_idx]
+
+
 target_pose = None
 target_bearing = None
 
@@ -215,6 +280,8 @@ for i in range(10):
 state = 'get_target'
 sub_state = 'bearing'
 
+first_loop = True
+
 # Main Control Loop:
 while robot.step(SIM_TIMESTEP) != -1:
 
@@ -224,12 +291,20 @@ while robot.step(SIM_TIMESTEP) != -1:
 
     lidar_readings_array = lidar.getRangeImage()
 
+    # Update the walls at the starting location
+    if first_loop:
+        update_map()
+        first_loop = False
+
     if state == "get_target":
 
-        if not target_poses:
+        target_pose_map_coords = get_next_target()
+        if target_pose_map_coords is None:
+            leftMotor.setVelocity(0)
+            rightMotor.setVelocity(0)
+            print('Here')
             break
 
-        target_pose_map_coords = target_poses.pop(0)
         current_pose_map_coords = transform_world_coord_to_map_coord((pose_x, pose_y))
 
         target_bearing = get_target_bearing(target_pose_map_coords, current_pose_map_coords)
@@ -244,15 +319,15 @@ while robot.step(SIM_TIMESTEP) != -1:
         distance_error = np.linalg.norm(np.array(target_pose) - np.array([pose_x, pose_y]))
 
         if sub_state == "bearing":
-            if bearing_error > 1:
-                leftMotor.setVelocity(-leftMotor.getMaxVelocity() * 0.1)
-                rightMotor.setVelocity(rightMotor.getMaxVelocity() * 0.1)
+            if bearing_error > 0.5:
+                leftMotor.setVelocity(-leftMotor.getMaxVelocity() * 0.05)
+                rightMotor.setVelocity(rightMotor.getMaxVelocity() * 0.05)
             else:
                 leftMotor.setVelocity(0)
                 rightMotor.setVelocity(0)
                 sub_state = "distance"
         elif sub_state == "distance":
-            if distance_error > 0.01:
+            if distance_error > 0.05:
                 leftMotor.setVelocity(leftMotor.getMaxVelocity() * 0.2)
                 rightMotor.setVelocity(rightMotor.getMaxVelocity() * 0.2)
             else:
