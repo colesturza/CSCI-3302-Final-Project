@@ -4,8 +4,12 @@ import math
 import numpy as np
 from controller import Robot, Motor, DistanceSensor
 
-state = 'turn_drive_turn_control'
-sub_state = 'bearing'
+import supervisor
+
+# supervisor.init_supervisor()
+# robot = supervisor.supervisor
+
+robot = Robot()
 
 LIDAR_SENSOR_MAX_RANGE = 0.25  # Meters
 LIDAR_ANGLE_BINS = 21  # 21 Bins to cover the angular range of the lidar, centered at 10
@@ -22,9 +26,6 @@ MAX_VEL_REDUCTION = 1  # Run robot at 20% of max speed
 # ePuck Constants
 EPUCK_AXLE_DIAMETER = 0.053  # ePuck's wheels are 53mm apart.
 EPUCK_MAX_WHEEL_SPEED = 0.125 * MAX_VEL_REDUCTION  # To be filled in with ePuck wheel speed in m/s
-
-# create the Robot instance.
-robot = Robot()
 
 # get the time step of the current world.
 SIM_TIMESTEP = int(robot.getBasicTimeStep())
@@ -76,6 +77,12 @@ NUM_Y_CELLS = int(MAP_BOUNDS[1] / CELL_RESOLUTIONS[1])
 
 world_map = np.zeros([NUM_Y_CELLS, NUM_X_CELLS, 6])
 
+# Set the boundary walls
+world_map[:, 8, 1] = 1  # North facing wall
+world_map[0, :, 2] = 1  # West facing wall
+world_map[:, 0, 3] = 1  # South facing wall
+world_map[8, :, 4] = 1  # East facing wall
+
 
 def get_bounded_theta(theta):
     """
@@ -112,17 +119,6 @@ def transform_map_coord_world_coord(map_coord):
     return np.array([(col+0.5)*CELL_RESOLUTIONS[1], (row+0.5)*CELL_RESOLUTIONS[0]])
 
 
-def convert_compass_values(values):
-    """
-    @param values: Values returned by the compass to be converted radians from north
-    """
-    rad = math.atan2(values[0], values[2])
-    bearing = rad - 1.5708
-    if bearing < 0.0:
-        bearing = bearing + 2 * math.pi
-    return bearing
-
-
 def update_map():
     global pose_x, pose_y, pose_theta
     global lidar_readings_array, CENTER_LIDAR_IDX, LEFT_LIDAR_IDX, RIGHT_LIDAR_IDX
@@ -132,72 +128,145 @@ def update_map():
     if world_map[map_coords][0] == 0:
         world_map[map_coords][0] = 1
 
+    facing = None
+
+    if math.isclose(pose_theta, 90, abs_tol=10):
+        facing = 'North'
+
+    elif math.isclose(pose_theta, 360, abs_tol=10):
+        facing = 'West'
+
+    elif math.isclose(pose_theta, 270, abs_tol=10):
+        facing = 'South'
+
+    elif math.isclose(pose_theta, 180, abs_tol=10):
+        facing = 'East'
+
     center = True if lidar_readings_array[CENTER_LIDAR_IDX] <= LIDAR_SENSOR_MAX_RANGE else False
     left = True if lidar_readings_array[LEFT_LIDAR_IDX] <= LIDAR_SENSOR_MAX_RANGE else False
     right = True if lidar_readings_array[RIGHT_LIDAR_IDX] <= LIDAR_SENSOR_MAX_RANGE else False
 
     if center:
-        world_map[map_coords][1] = 1
+        if facing == 'North':
+            world_map[map_coords][1] = 1
+        elif facing == 'West':
+            world_map[map_coords][2] = 1
+        elif facing == 'South':
+            world_map[map_coords][3] = 1
+        elif facing == 'East':
+            world_map[map_coords][4] = 1
 
     if left:
-        world_map[map_coords][2] = 1
+        if facing == 'North':
+            world_map[map_coords][2] = 1  # Left sensor is facing West
+        elif facing == 'West':
+            world_map[map_coords][3] = 1  # Left sensor is facing South
+        elif facing == 'South':
+            world_map[map_coords][4] = 1  # Left sensor is facing East
+        elif facing == 'East':
+            world_map[map_coords][1] = 1  # Left sensor is facing North
 
     if right:
-        world_map[map_coords][3] = 1
+        if facing == 'North':
+            world_map[map_coords][4] = 1  # Right sensor is facing East
+        elif facing == 'West':
+            world_map[map_coords][1] = 1  # Right sensor is facing North
+        elif facing == 'South':
+            world_map[map_coords][2] = 1  # Right sensor is facing South
+        elif facing == 'East':
+            world_map[map_coords][3] = 1  # Right sensor is facing West
+
+
+def get_bearing_in_degrees(values):
+    rad = math.atan2(compass_values[0], compass_values[2])
+    bearing = (rad - 1.5708) / math.pi * 180.0;
+    if bearing < 0.0:
+        bearing = bearing + 360.0
+    return bearing
+
+
+def get_target_bearing(to_coords, from_coords):
+    """
+    Uses world map coordinates to get the target bearing in degrees
+    """
+    direction = (to_coords[0] - from_coords[0], to_coords[1] - from_coords[1])
+
+    print(direction, to_coords, from_coords)
+
+    if direction == (-1, 0):
+        return 360
+    if direction == (1, 0):
+        return 180
+    if direction == (0, 1):
+        return 90
+    return 270
 
 
 # Important IK Variable storing final desired pose
-target_pose = transform_map_coord_world_coord((0, 7))  # Populated by the supervisor, only when the target is moved.
-
-print(target_pose)
+target_poses = [(7, 0), (6, 0), (5, 0), (4, 0), (3, 0), (2, 0), (1, 0), (0, 0)]  # Populated by the supervisor, only when the target is moved.
+target_pose = None
+target_bearing = None
 
 # Sensor burn-in period
 for i in range(10):
     robot.step(SIM_TIMESTEP)
 
+state = 'get_target'
+sub_state = 'bearing'
+
 # Main Control Loop:
 while robot.step(SIM_TIMESTEP) != -1:
 
-    # leftMotor.setVelocity(leftMotor.getMaxVelocity() * 0.2)
-    # rightMotor.setVelocity(rightMotor.getMaxVelocity() * 0.2)
+    pose_x, _, pose_y = gps.getValues()
+    compass_values = compass.getValues()
+    pose_theta = get_bearing_in_degrees(compass_values)
 
-    pose_y, _, pose_x = gps.getValues()
-    north = compass.getValues()
-    pose_theta = convert_compass_values(north)
+    lidar_readings_array = lidar.getRangeImage()
 
-    print(pose_theta)
+    if state == "get_target":
 
-    bearing_error = get_bounded_theta(math.atan2(target_pose[1] - pose_y, target_pose[0] - pose_x) - pose_theta)
-    distance_error = np.sqrt((target_pose[0] - pose_x) ** 2 + (target_pose[1] - pose_y) ** 2)
+        if not target_poses:
+            break
 
-    # lidar_readings_array = lidar.getRangeImage()
+        target_pose_map_coords = target_poses.pop(0)
+        current_pose_map_coords = transform_world_coord_to_map_coord((pose_x, pose_y))
 
-    # update_map()
+        target_bearing = get_target_bearing(target_pose_map_coords, current_pose_map_coords)
+        target_pose = transform_map_coord_world_coord(target_pose_map_coords)
 
-    print(math.atan2(target_pose[1] - pose_y, target_pose[0] - pose_x))
+        print(target_pose, target_bearing)
+        state = "turn_drive_turn_control"
 
-    if state == "turn_drive_turn_control":
+    elif state == "turn_drive_turn_control":
+
+        bearing_error = abs(target_bearing - pose_theta)
+        distance_error = np.linalg.norm(np.array(target_pose) - np.array([pose_x, pose_y]))
+
         if sub_state == "bearing":
-            if bearing_error > 0.05 or bearing_error < -0.05:
-                # If target is on the left rotate counter clockwise
-                if bearing_error > 0:
-                    leftMotor.setVelocity(-leftMotor.getMaxVelocity() * 0.2)
-                    rightMotor.setVelocity(rightMotor.getMaxVelocity() * 0.2)
-                # If target is on the right rotate clockwise
-                else:
-                    leftMotor.setVelocity(leftMotor.getMaxVelocity() * 0.2)
-                    rightMotor.setVelocity(-rightMotor.getMaxVelocity() * 0.2)
+            if bearing_error > 1:
+                leftMotor.setVelocity(-leftMotor.getMaxVelocity() * 0.1)
+                rightMotor.setVelocity(rightMotor.getMaxVelocity() * 0.1)
             else:
                 leftMotor.setVelocity(0)
                 rightMotor.setVelocity(0)
                 sub_state = "distance"
         elif sub_state == "distance":
-            if distance_error > 0.05:
-                leftMotor.setVelocity(leftMotor.getMaxVelocity() * 0.1)
-                rightMotor.setVelocity(rightMotor.getMaxVelocity() * 0.1)
+            if distance_error > 0.01:
+                leftMotor.setVelocity(leftMotor.getMaxVelocity() * 0.2)
+                rightMotor.setVelocity(rightMotor.getMaxVelocity() * 0.2)
             else:
                 leftMotor.setVelocity(0)
                 rightMotor.setVelocity(0)
+
+                update_map()
+
                 sub_state = "bearing"
+                state = "get_target"
+
+print(world_map[:, :, 0])
+print(world_map[:, :, 1])
+print(world_map[:, :, 2])
+print(world_map[:, :, 3])
+print(world_map[:, :, 4])
 
 # Enter here exit cleanup code.

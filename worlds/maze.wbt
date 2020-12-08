@@ -1,12 +1,12 @@
 #VRML_SIM R2020b utf8
 WorldInfo {
+  title "E-Puck"
   coordinateSystem "NUE"
 }
 Viewpoint {
-  orientation -0.5373912186684118 -0.6172280514707355 -0.5746653030901713 2.115649930215746
-  position 0.1349501872379023 2.681460899441558 1.8922939145522768
+  orientation -0.5586727918290633 -0.6558560606280951 -0.5076785788344004 1.9149985723395924
+  position -0.4019816301535696 2.989865744805998 2.0243672479721178
   follow "e-puck"
-  followType "None"
 }
 TexturedBackground {
 }
@@ -16,9 +16,10 @@ RectangleArena {
   translation 1.125 0 1.125
   floorSize 2.25 2.25
 }
-E-puck {
+DEF EPUCK E-puck {
   translation 0.125 0 2.125
   controller "maze_mapper"
+  supervisor TRUE
   turretSlot [
     Compass {
     }
