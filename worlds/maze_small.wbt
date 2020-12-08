@@ -4,8 +4,8 @@ WorldInfo {
   coordinateSystem "NUE"
 }
 Viewpoint {
-  orientation -0.7155253734938227 -0.5691585108663394 -0.40507040054160526 1.5949997995746068
-  position -0.4982223444059105 2.560943177277182 1.7629348867701535
+  orientation -0.7452186299318742 -0.4622971365878687 -0.4805523396104925 1.9226873672523743
+  position 0.8301297444629916 3.11468653431809 0.8470762924939517
   follow "e-puck"
 }
 TexturedBackground {
@@ -50,7 +50,8 @@ DEF HALF_WALL Wall {
   }
 }
 DEF HALF_WALL Wall {
-  translation 0.875 0 0.4875
+  translation 0.7375 0 1.1325
+  rotation 0 1 0 1.5708
   name "wall(27)"
   size 0.25 0.25 0.025
   appearance Appearance {
@@ -81,7 +82,8 @@ DEF HALF_WALL_GREEN Wall {
   }
 }
 DEF HALF_WALL_RED Wall {
-  translation 0.875 0 0.5125
+  translation 0.7625 0 1.1325
+  rotation 0 1 0 1.5708
   name "wall(17)"
   size 0.25 0.25 0.025
   appearance Appearance {
@@ -146,17 +148,6 @@ DEF WALL Wall {
   }
 }
 DEF WALL Wall {
-  translation 0.75 0 1.125
-  rotation 0 -0.9999999999999999 0 1.5707953071795862
-  name "wall(3)"
-  size 0.25 0.25 0.05
-  appearance Appearance {
-    material Material {
-      diffuseColor 0.933333 0.933333 0.92549
-    }
-  }
-}
-DEF WALL Wall {
   translation 0.875 0 1.25
   rotation 0 1 0 1.01503e-06
   name "wall(11)"
@@ -171,6 +162,17 @@ DEF WALL Wall {
   translation 0.875 0 1
   rotation 0 1 0 1.01503e-06
   name "wall(12)"
+  size 0.25 0.25 0.05
+  appearance Appearance {
+    material Material {
+      diffuseColor 0.933333 0.933333 0.92549
+    }
+  }
+}
+DEF WALL Wall {
+  translation 0.875 0 0.5
+  rotation 0 1 0 1.01503e-06
+  name "wall(3)"
   size 0.25 0.25 0.05
   appearance Appearance {
     material Material {
