@@ -695,11 +695,12 @@ def main():
                 print('Finished')
                 break
 
-    print(world_map[:, :, 0])
-    print(world_map[:, :, 1])
-    print(world_map[:, :, 2])
-    print(world_map[:, :, 3])
-    print(world_map[:, :, 4])
+    print(np.rot90(world_map[:, :, 1], 2))
+    print(np.rot90(world_map[:, :, 2], 2))
+    print(np.rot90(world_map[:, :, 3], 2))
+    print(np.rot90(world_map[:, :, 4], 2))
+    print(np.rot90(world_map[:, :, 5], 2))
+    print(np.rot90(world_map[:, :, 6], 2))
 
     # Enter here exit cleanup code.
 
