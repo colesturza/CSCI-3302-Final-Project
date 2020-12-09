@@ -82,9 +82,6 @@ world_map[0, :, 2] = 1  # West facing wall
 world_map[:, 0, 3] = 1  # South facing wall
 world_map[NUM_Y_CELLS-1, :, 4] = 1  # East facing wall
 
-# Set starting spot to visited
-world_map[5, 0, 0] = 1
-
 camera = robot.getCamera('camera')
 camera.enable(SIM_TIMESTEP)
 
@@ -329,12 +326,16 @@ def update_map():
         if color is not None:
             if color == 'Red':
                 world_map[map_coords][5] = 1
+                print("Found Red")
             if color == 'Green':
                 world_map[map_coords][5] = 2
+                print("Found Green")
             if color == 'Blue':
                 world_map[map_coords][5] = 3
+                print("Found Blue")
             if color == 'Yellow':
                 world_map[map_coords][5] = 4
+                print("Found Yellow")
 
         if facing == 'North':
             world_map[map_coords][1] = 1
@@ -497,7 +498,7 @@ def find_shortest_path(graph_dict, start, goal):
         curr = prev[curr]
     path.append(curr)
 
-    return path[::-1]
+    return path[::-1][1:]
 
 
 """
@@ -557,7 +558,7 @@ def main():
                 # mapping is complete
                 leftMotor.setVelocity(0)
                 rightMotor.setVelocity(0)
-                print('here')
+                print('Mapping Complete')
                 graph = world_map_to_graph()  # create the graph for the world
                 state = 'get_path'
                 continue
@@ -664,6 +665,8 @@ def main():
                 color_idx += 1
                 state = 'bfs_get_target'
 
+                print("Heading to start location", start_pose)
+
             elif color_idx < len(color_order):
 
                 color_map_coords = (0, 0)
@@ -681,7 +684,7 @@ def main():
                     x, y = np.where(world_map[:, :, 5] == 4)
                     color_map_coords = (x[0], y[0])
 
-                print(color_map_coords)
+                print("Heading to", color_order[color_idx], " at location", color_map_coords)
 
                 target_poses = find_shortest_path(graph, current_map_coords, color_map_coords)
                 color_idx += 1
