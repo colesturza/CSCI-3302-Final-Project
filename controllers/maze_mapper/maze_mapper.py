@@ -695,12 +695,12 @@ def main():
                 print('Finished')
                 break
 
+    print(world_map[:, :, 0])
     print(world_map[:, :, 1])
     print(world_map[:, :, 2])
     print(world_map[:, :, 3])
     print(world_map[:, :, 4])
     print(world_map[:, :, 5])
-    print(world_map[:, :, 6])
 
     # Enter here exit cleanup code.
 
